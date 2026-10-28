@@ -15,8 +15,11 @@ module.exports = [
   { ...door, spots: ["200"], o: "s", x: 790, y: 860, cols: 1, cw: 56 },
   { ...door, spots: range(101, 110), o: "s", x: 930, y: 710, cols: 10, cw: 40 },
   { ...door, spots: ["R01"], o: "s", x: 1330, y: 710, cols: 1, cw: 56 },
-  { title: "Trailer parking", spots: range(1, 24, "P"), kind: "park", defaultStatus: "Loaded",
-    noun: "Parking spot ", o: "s", x: 190, y: 1010, cols: 12, cw: 40, sh: 110 },
+  { title: "Trailer parking", spots: range(1, 7, "P"), kind: "park", defaultStatus: "Loaded",
+    noun: "Parking spot ", o: "s", x: 190, y: 1010, cols: 7, cw: 40, sh: 110 },
+  // Parking P8-P13: a column left of the building, P8 at the bottom, trailers lying sideways.
+  { spots: rev(8, 13).map((n) => "P" + n), kind: "park", defaultStatus: "Loaded",
+    noun: "Parking spot ", o: "w", x: 30, y: 880, cols: 1, cw: 130, sh: 130, th: 50 },
   { title: "Unassigned trailers", spots: range(1, 27, "U"), kind: "pool", defaultStatus: "Undefined",
     noun: "Unassigned slot ", o: "s", x: 760, y: 1010, cols: 9, cw: 48, sh: 96 },
 ];

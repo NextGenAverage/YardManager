@@ -18,8 +18,9 @@ const db = new Database(path.join(DATA_DIR, "yard.db"));
 db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
-// Each entry upgrades the database by one version. Only ever append new
-// entries; never edit one that has already been released.
+// Each entry upgrades the database by one version: SQL text, or a function
+// for changes that need logic. Only ever append new entries; never edit one
+// that has already been released.
 const migrations = [
   `
   CREATE TABLE statuses (
@@ -134,13 +135,53 @@ const migrations = [
   INSERT INTO carriers (code, name, color) VALUES ('INT', 'Bring', '#7b2cbf'), ('DSV', 'DSV', '#0b3d91');
   ALTER TABLE trailers ADD COLUMN carrier TEXT;
   `,
+  // Layout change (October 2026): trailer parking becomes one row P1-P7, and
+  // P8-P13 a column of sideways spots left of the building. Only done if the
+  // parking section is still the original 24 spots. Trailers on spots that no
+  // longer exist (P14-P24) are moved to free Unassigned slots, or depart if
+  // there is no room, and the history says why.
+  (db) => {
+    const park = db.prepare("SELECT * FROM sections WHERE kind = 'park'").all();
+    const original = park.find((s) => JSON.parse(s.spots).length === 24 && JSON.parse(s.spots)[0] === "P1");
+    if (park.length !== 1 || !original) return; // new install or already changed
+
+    const rowSpots = Array.from({ length: 7 }, (_, i) => "P" + (i + 1));
+    const columnSpots = [13, 12, 11, 10, 9, 8].map((n) => "P" + n);
+    const geometry = JSON.parse(original.geometry);
+    db.prepare("UPDATE sections SET spots = ?, geometry = ? WHERE id = ?")
+      .run(JSON.stringify(rowSpots), JSON.stringify({ ...geometry, cols: 7 }), original.id);
+    db.prepare(`INSERT INTO sections (sort, title, kind, default_status, noun, spots, geometry)
+      VALUES (?, NULL, 'park', ?, ?, ?, ?)`).run(original.sort, original.default_status, original.noun,
+      JSON.stringify(columnSpots), JSON.stringify({ o: "w", x: 30, y: 880, cols: 1, cw: 130, sh: 130, th: 50 }));
+
+    const kept = new Set([...rowSpots, ...columnSpots]);
+    const stranded = db.prepare("SELECT * FROM visits WHERE departed_at IS NULL AND spot_id LIKE 'P%'").all()
+      .filter((v) => !kept.has(v.spot_id));
+    const pool = db.prepare("SELECT spots FROM sections WHERE kind = 'pool' ORDER BY sort").all()
+      .flatMap((s) => JSON.parse(s.spots));
+    const taken = new Set(db.prepare("SELECT spot_id FROM visits WHERE departed_at IS NULL").all().map((r) => r.spot_id));
+    const event = db.prepare(`INSERT INTO events (at, user_name, action, visit_id, plate, from_spot, to_spot, details)
+      VALUES (?, 'Layout change', ?, ?, ?, ?, ?, NULL)`);
+    for (const v of stranded) {
+      const free = pool.find((spot) => !taken.has(spot));
+      if (free) {
+        taken.add(free);
+        db.prepare("UPDATE visits SET spot_id = ? WHERE id = ?").run(free, v.id);
+        event.run(Date.now(), "move", v.id, v.plate, v.spot_id, free);
+      } else {
+        db.prepare("UPDATE visits SET departed_at = ? WHERE id = ?").run(Date.now(), v.id);
+        event.run(Date.now(), "depart", v.id, v.plate, v.spot_id, null);
+      }
+    }
+  },
 ];
 
 function migrate() {
   const version = db.pragma("user_version", { simple: true });
   for (let v = version; v < migrations.length; v++) {
     db.transaction(() => {
-      db.exec(migrations[v]);
+      if (typeof migrations[v] === "function") migrations[v](db);
+      else db.exec(migrations[v]);
       db.pragma(`user_version = ${v + 1}`);
     })();
   }
@@ -178,7 +219,7 @@ function getStatuses() {
 }
 
 function getSections() {
-  return db.prepare("SELECT * FROM sections ORDER BY sort").all().map((s) => ({
+  return db.prepare("SELECT * FROM sections ORDER BY sort, id").all().map((s) => ({
     id: s.id,
     title: s.title,
     kind: s.kind,

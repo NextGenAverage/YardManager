@@ -1253,3 +1253,17 @@ a.btn {
   margin: 4px 0 8px;
   font-size: 14px;
 }
+
+/* Sideways parking spots (P8-P13): yellow lines, one spot per row */
+.o-w .grid.pkg,
+.o-e .grid.pkg {
+  border: 3px solid var(--yellow);
+  border-bottom: 0;
+}
+
+.o-w .pkg .stall,
+.o-e .pkg .stall {
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 3px solid var(--yellow);
+}
