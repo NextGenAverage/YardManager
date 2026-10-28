@@ -137,7 +137,7 @@ The map shows each trailer's **reg. number** (licence plate) with a small **carr
 | 🚪 Doors | On the map, with door signs |
 | 🅿️ Parking | On the map, yellow lines |
 | 📋 Unassigned | In the side panel next to the map |
-| 🛣️ Street parking | Below the gate, outside the fence |
+| 🛣️ Street parking | Below the map, outside the fence |
 
 ---
 

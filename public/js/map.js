@@ -1,5 +1,6 @@
 // Drawing the yard: buildings and spots on the map, the side panel (Unassigned),
-// street parking below the gate, the legend and the search highlight. Clicks on spots are handled in main.js.
+// street parking outside the fence, the legend and the search highlight.
+// Clicks on spots are handled in main.js.
 import { $, esc, dwell, showMsg, formatTime } from "./util.js";
 import { yard, ui, statusStyle, carrierBadge } from "./store.js";
 import { refit, setMapWidth } from "./zoom.js";
@@ -44,7 +45,7 @@ function sectionHtml(s, index) {
 
 export function render() {
   // Unassigned ("pool") sections go in the side panel, street parking below the
-  // gate, everything else on the map.
+  // fence, everything else on the map.
   let map = "", side = "", street = "";
   yard.sections.forEach((s, i) => {
     if (s.kind === "pool") side += sectionHtml(s, i);

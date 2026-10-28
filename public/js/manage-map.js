@@ -13,7 +13,7 @@ let selected = null; // { type: "section" | "building", i }
 let dirty = false;
 let zoom = 1;
 
-const KIND_LABELS = { door: "Doors", park: "Parking", pool: "Unassigned (side panel)", street: "Street parking (below the gate)" };
+const KIND_LABELS = { door: "Doors", park: "Parking", pool: "Unassigned (side panel)", street: "Street parking (outside the fence)" };
 const DIRECTION_LABELS = {
   n: "Up (door sign below)", s: "Down (door sign above)",
   e: "Right, lying sideways", w: "Left, lying sideways",
@@ -131,7 +131,7 @@ function renderPanel() {
     + (sideways ? field("Spot height (sideways)", num("th", s.th ?? 40, "min=20")) : "") + `</div>`
     + `<div class="ed-row">${field("X", num("x", s.x))}${field("Y", num("y", s.y))}</div>`
     + field("Default status for new trailers", `<select data-key="defaultStatus">${options(Object.fromEntries(statuses.map((n) => [n, n])), s.defaultStatus)}</select>`)
-    + field("Spot name in the sheet", `<input data-key="noun" value="${esc(s.noun)}" maxlength="30" placeholder="e.g. Parking spot ">`)
+    + field("Spot name in the sheet", `<input data-key="noun" value="${esc(s.noun)}" maxlength="30" placeholder="e.g. Parking spot">`)
     + `<div class="row ed-actions"><button class="btn" data-act="duplicate">Duplicate</button>`
     + `<button class="btn warn" data-act="delete">Delete section</button></div>`;
 }

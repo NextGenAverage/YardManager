@@ -259,60 +259,11 @@ main > .lot:last-child {
   border-bottom: 4px solid #7b818b;
 }
 
-/* Gate at the bottom of the lot */
-.gate {
-  position: relative;
-  margin-top: 6px;
-  padding: 26px 10px 12px;
-  border-top: 5px solid #555b66;
-  background: linear-gradient(#2d3036, #3a3e45);
-}
-
-.gate::before {   /* fence */
-  content: "";
-  position: absolute;
-  top: -14px;
-  left: 0;
-  right: 0;
+/* Fence along the bottom of the lot; street parking is outside it */
+.fence {
   height: 9px;
+  margin-top: 6px;
   background: repeating-linear-gradient(90deg, #8d939d 0 3px, transparent 3px 14px);
-}
-
-.arm {
-  position: absolute;
-  top: 4px;
-  left: 50%;
-  right: 10px;
-  height: 10px;
-  border-radius: 5px;
-  background: repeating-linear-gradient(135deg, #e5392f 0 10px, #fff 10px 20px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, .5);
-}
-
-.booth {
-  position: absolute;
-  top: -2px;
-  left: 10px;
-  width: 46px;
-  height: 22px;
-  border-radius: 4px;
-  background: #d8dde5;
-  color: #3c424c;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 22px;
-  text-align: center;
-}
-
-.lanes {
-  display: flex;
-  justify-content: space-around;
-  padding-top: 8px;
-  border-top: 3px dashed rgba(245, 230, 184, .5);
-  color: #f5e6b8;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: .12em;
 }
 
 
@@ -1270,7 +1221,7 @@ a.btn {
   border-bottom: 3px solid var(--yellow);
 }
 
-/* Street parking: a strip of road below the gate, outside the fence */
+/* Street parking: a strip of road below the map, outside the fence */
 .street {
   padding: 10px 0 6px;
   border-top: 4px solid #555b66;

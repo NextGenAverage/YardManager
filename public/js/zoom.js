@@ -9,7 +9,7 @@ let mapWidth = 1560; // width of the map drawing in px at zoom 1; set by map.js 
 let zoom = 1;
 let auto = true;
 
-// The map and the street strip below the gate always share one zoom.
+// The map and the street strip below it always share one zoom.
 function setZoom(value) {
   zoom = Math.max(0.3, Math.min(2.2, value));
   for (const scene of document.querySelectorAll(".scene")) scene.style.zoom = zoom;
@@ -50,7 +50,7 @@ export function initZoom() {
   window.addEventListener("resize", () => { measureHeader(); refit(); });
   measureHeader();
 
-  // The street strip below the gate scrolls sideways together with the map.
+  // The street strip below the map scrolls sideways together with the map.
   const pans = [$("pan"), $("street-pan")];
   for (const pan of pans) {
     pan.addEventListener("scroll", () => {

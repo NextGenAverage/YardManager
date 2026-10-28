@@ -57,5 +57,5 @@ export function carrierBadge(code) {
 export function spotName(spot) {
   const s = sectionOf(spot);
   if (!s) return "spot " + spot;
-  return s.noun + (/^[PUS]\d+$/.test(spot) ? spot.slice(1) : spot);
+  return `${s.noun.trim()} ${/^[PUS]\d+$/.test(spot) ? spot.slice(1) : spot}`;
 }
