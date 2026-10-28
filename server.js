@@ -23,6 +23,30 @@ function checkSpot(spot) {
   return yard.spotExists(spot) ? null : "Unknown spot.";
 }
 
+// Live updates (Server-Sent Events): every open map keeps /api/events open
+// and gets the whole yard state again each time something changes.
+const listeners = new Set();
+const event = (s = state()) => `data: ${JSON.stringify(s)}\n\n`;
+
+app.get("/api/events", (req, res) => {
+  res.set({ "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "X-Accel-Buffering": "no" });
+  res.flushHeaders();
+  res.write("retry: 3000\n" + event()); // browsers reconnect after 3 s if the line drops
+  listeners.add(res);
+  req.on("close", () => listeners.delete(res));
+});
+
+// A comment line every 25 s stops proxies and firewalls closing idle connections.
+setInterval(() => listeners.forEach((res) => res.write(": ping\n\n")), 25000);
+
+// Reply to the request that changed the yard, and tell everyone else.
+function changed(res) {
+  const s = state();
+  const msg = event(s);
+  listeners.forEach((l) => l.write(msg));
+  res.json(s);
+}
+
 app.get("/api/yard", (req, res) => res.json(state()));
 
 app.post("/api/place", (req, res) => {
@@ -35,7 +59,7 @@ app.post("/api/place", (req, res) => {
     || (!yard.statusExists(status) && "Unknown status.");
   if (err) return res.status(400).json({ error: err });
   yard.placeTrailer({ spot, trailer, status, note });
-  res.json(state());
+  changed(res);
 });
 
 app.post("/api/move", (req, res) => {
@@ -44,7 +68,7 @@ app.post("/api/move", (req, res) => {
   const err = checkSpot(from) || checkSpot(to);
   if (err) return res.status(400).json({ error: err });
   yard.moveTrailer({ from, to });
-  res.json(state());
+  changed(res);
 });
 
 app.post("/api/clear", (req, res) => {
@@ -52,7 +76,7 @@ app.post("/api/clear", (req, res) => {
   const err = checkSpot(spot);
   if (err) return res.status(400).json({ error: err });
   yard.clearSpot(spot);
-  res.json(state());
+  changed(res);
 });
 
 // YardError = a normal "can't do that right now" (409); anything else is a bug.
