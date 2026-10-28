@@ -24,7 +24,17 @@ h1 small{font-weight:400;color:var(--mute);font-size:13px}
 .legend .items{display:contents}
 .legend .items span{white-space:nowrap}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
-main{padding:10px;max-width:2200px;margin:0 auto}
+main{padding:10px;max-width:2200px;margin:0 auto;display:flex;gap:10px;align-items:flex-start}
+main>.lot:last-child{flex:1;min-width:0}
+/* Side panel (Unassigned trailers): beside the map, not affected by map zoom */
+.side{flex:0 0 auto;position:sticky;top:calc(var(--hh,120px) + 10px);max-height:calc(100vh - var(--hh,120px) - 20px);overflow-y:auto;padding:10px}
+.side .sec{position:static}
+.side .grid{grid-template-columns:repeat(4,var(--cw))}
+@media (max-width:699px){
+  main{flex-direction:column;align-items:stretch}
+  .side{position:static;max-height:none;overflow-x:auto}
+  .side .grid{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:var(--cw);width:max-content}
+}
 .lot{background:#3a3e45 radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.5px) 0 0/6px 6px;border:4px solid #5b606a;border-radius:12px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.35)}
 .pan{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .scene{position:relative;width:1560px;height:1240px}
@@ -108,6 +118,7 @@ box-shadow:0 4px 8px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.35);trans
 </div>
 </header>
 <main>
+<aside class="side lot" id="side"></aside>
 <div class="lot">
 <div class="pan" id="pan"><div class="scene" id="scene">
 <div class="bld hall" style="left:460px;top:130px;width:960px;height:430px">WAREHOUSE</div><div class="bld" style="left:190px;top:560px;width:1230px;height:150px"></div><div class="bld" style="left:190px;top:560px;width:700px;height:300px"></div>
@@ -172,21 +183,25 @@ function legend(){
   $("legend-items").innerHTML=h;
 }
 function render(){
-  var html="",total=0,used=0;
+  // Unassigned ("pool") sections go in the side panel, everything else on the map.
+  var html="",side="",total=0,used=0;
   SECTIONS.forEach(function(s,si){
-    html+='<div class="sec o'+s.o+'" style="--th:'+(s.th||40)+'px;left:'+s.x+'px;top:'+s.y+'px;--cols:'+s.cols+';--cw:'+s.cw+'px;--sh:'+s.sh+'px">'+(s.title?'<h2>'+esc(s.title)+'</h2>':'')+'<div class="grid'+(s.kind!=="door"?" pkg":"")+'">';
+    var h='<div class="sec o'+s.o+'" style="--th:'+(s.th||40)+'px;left:'+s.x+'px;top:'+s.y+'px;--cols:'+s.cols+';--cw:'+s.cw+'px;--sh:'+s.sh+'px">'+(s.title?'<h2>'+esc(s.title)+'</h2>':'')+'<div class="grid'+(s.kind!=="door"?" pkg":"")+'">';
     s.spots.forEach(function(id){
       total++;var d=data[id];if(d)used++;
-      html+='<button class="bay'+(d?" on":"")+'" data-id="'+esc(id)+'" data-s="'+si+'">';
-      if(s.kind==="door")html+='<span class="door"><span class="dr">'+esc(id)+'</span></span>';
-      html+='<span class="stall">';
-      if(s.kind!=="door"&&!d)html+='<span class="lbl">'+esc(id)+'</span>';
-      if(d)html+='<span class="trl'+(d.damaged?" dmg":"")+'" style="'+colors(d.status)+'"><b class="tr"></b><i class="dw">'+(d.damaged?"⚠ ":"")+dwell(d.since)+'</i></span>';
-      html+='</span></button>';
+      h+='<button class="bay'+(d?" on":"")+'" data-id="'+esc(id)+'" data-s="'+si+'">';
+      if(s.kind==="door")h+='<span class="door"><span class="dr">'+esc(id)+'</span></span>';
+      h+='<span class="stall">';
+      if(s.kind!=="door"&&!d)h+='<span class="lbl">'+esc(id)+'</span>';
+      if(d)h+='<span class="trl'+(d.damaged?" dmg":"")+'" style="'+colors(d.status)+'"><b class="tr"></b><i class="dw">'+(d.damaged?"⚠ ":"")+dwell(d.since)+'</i></span>';
+      h+='</span></button>';
     });
-    html+='</div></div>';
+    h+='</div></div>';
+    if(s.kind==="pool")side+=h;else html+=h;
   });
   $("map").innerHTML=html;
+  $("side").innerHTML=side;$("side").hidden=!side;
+  if(auto)fit(); // the side panel's width changes the room left for the map
   sizeScene();
   var btns=document.querySelectorAll(".bay");
   for(var i=0;i<btns.length;i++){
@@ -200,18 +215,19 @@ function render(){
   find(false);
   if(sel&&data[sel]&&!$("q").value)$("msg").textContent="Moving "+data[sel].trailer+": tap an open spot to place it, or tap it again to cancel";
 }
-// Trailer numbers start large and shrink only as much as needed to fit their spot.
 // The map is as tall as its lowest section (title + rows of spots + door strip).
 var sceneH=1240;
 function sizeScene(){
   var h=0;
   SECTIONS.forEach(function(s){
+    if(s.kind==="pool")return;
     var rows=Math.ceil(s.spots.length/s.cols),side=s.o==="e"||s.o==="w";
     h=Math.max(h,s.y+(s.title?18:0)+rows*(side?(s.th||40):s.sh+(s.kind==="door"?28:0))+6);
   });
   var nh=Math.max(600,h+20);
   if(nh!==sceneH){sceneH=nh;$("scene").style.height=sceneH+"px";if(auto)fit()}
 }
+// Trailer numbers start large and shrink only as much as needed to fit their spot.
 function fitNumbers(){
   var trs=document.querySelectorAll(".trl .tr");
   for(var i=0;i<trs.length;i++){
@@ -366,7 +382,9 @@ var auto=true;
 function fit(f){var w=$("pan").clientWidth;if(w>=700)setZ(w/1560);else setZ(f?w/1560:1)}
 $("zi").onclick=function(){auto=false;setZ(z+.15);saveZ(z)};$("zo").onclick=function(){auto=false;setZ(z-.15);saveZ(z)};
 $("zf").onclick=function(){auto=true;saveZ(null);fit(true)};
-window.addEventListener("resize",function(){if(auto)fit()});
+function headerH(){document.documentElement.style.setProperty("--hh",document.querySelector("header").offsetHeight+"px")}
+window.addEventListener("resize",function(){headerH();if(auto)fit()});
+headerH();
 try{var zs=+localStorage.getItem(ZKEY);if(zs){auto=false;setZ(zs)}}catch(e){}
 if(auto)fit();
 $("q").oninput=function(){find(true)};
