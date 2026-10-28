@@ -1565,3 +1565,32 @@ a.btn {
   padding: 6px 12px;
   font-size: 13px;
 }
+
+
+/* Date/time fields open a picker when clicked */
+input[type="datetime-local"]:not(:disabled) {
+  cursor: pointer;
+}
+
+/* Quick-pick buttons under a date/time field: "+1 h", "Tomorrow 06:00" ... */
+.quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 2px;
+}
+
+.quick button {
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.quick button:hover {
+  border-color: var(--accent);
+}

@@ -107,6 +107,7 @@ export function openSheet(id, sectionIndex, arrival) {
   // Arrival time and Move/Departed/Remove only apply to a spot with a trailer.
   $("f-arr-wrap").hidden = !t;
   $("f-exp-wrap").hidden = !t && !full; // operators can plan the departure of a new trailer too
+  $("f-exp-quick").hidden = !full;
   $("occ-row").hidden = !t || !full;
   $("sheet").classList.add("open");
   if (!t && full) setTimeout(() => $("f-tr").focus(), 220);

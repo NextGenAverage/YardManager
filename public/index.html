@@ -78,8 +78,18 @@
       <button class="chip tog" id="f-dmg" type="button">⚠ Damaged</button>
       <label class="arr" id="f-arr-wrap">Arrived <input type="datetime-local" id="f-arr"></label>
     </div>
-    <div class="row sheet-row" id="f-exp-wrap">
-      <label class="arr">Planned departure <input type="datetime-local" id="f-exp"></label>
+    <div class="sheet-row" id="f-exp-wrap">
+      <div class="row">
+        <label class="arr">Planned departure <input type="datetime-local" id="f-exp"></label>
+      </div>
+      <div class="quick" data-for="f-exp" id="f-exp-quick">
+        <button type="button" data-hours="1">+1 h</button>
+        <button type="button" data-hours="2">+2 h</button>
+        <button type="button" data-hours="4">+4 h</button>
+        <button type="button" data-hours="8">+8 h</button>
+        <button type="button" data-tomorrow="6">Tomorrow 06:00</button>
+        <button type="button" data-clear>Clear</button>
+      </div>
     </div>
     <div class="row sheet-row" id="occ-row">
       <button class="btn" id="b-move">Move</button>
@@ -103,7 +113,14 @@
       <form class="in-add" id="in-add" hidden>
         <div class="row">
           <input name="plate" placeholder="Reg. number" required maxlength="20" autocapitalize="characters">
-          <input name="when" type="datetime-local" required aria-label="Expected arrival">
+          <input name="when" id="in-when" type="datetime-local" required aria-label="Expected arrival">
+        </div>
+        <div class="quick" data-for="in-when">
+          <button type="button" data-hours="0.5">In 30 min</button>
+          <button type="button" data-hours="1">1 h</button>
+          <button type="button" data-hours="2">2 h</button>
+          <button type="button" data-hours="4">4 h</button>
+          <button type="button" data-tomorrow="6">Tomorrow 06:00</button>
         </div>
         <div class="row">
           <input name="trailerId" placeholder="Trailer ID" maxlength="60">

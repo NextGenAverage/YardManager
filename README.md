@@ -115,6 +115,7 @@ The map shows each trailer's **reg. number** (licence plate) with a small **carr
 - 🛬 **Incoming** (header button): trailers expected to arrive, soonest first, visible to everyone. The button shows how many, e.g. *Incoming (3)*, and turns red when one is late.
 - 📍 **Arrived: place on map:** tap an open spot and the sheet opens filled in. Saving takes the trailer off the list and keeps its planned arrival on the visit.
 - 📊 **History** shows planned vs. actual times, e.g. *Planned arrival 10:27 · 40m late*.
+- 🗓️ **Picking times:** clicking a date/time field opens a calendar and clock. Quick buttons (*+1 h*, *+2 h*, *Tomorrow 06:00*…) set common times in one click.
 
 ---
 

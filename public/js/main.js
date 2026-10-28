@@ -1,6 +1,6 @@
 // Starts the page and connects the pieces: taps on spots, moving trailers,
 // search, keyboard, and the live connection to the server.
-import { $, showMsg } from "./util.js";
+import { $, showMsg, initDatePickers } from "./util.js";
 import { yard, ui, can, setYard, onYardChange } from "./store.js";
 import { send } from "./api.js";
 import { render, renderLegend, highlightSearch } from "./map.js";
@@ -87,6 +87,7 @@ $("b-logout").onclick = async () => {
 };
 
 initZoom();
+initDatePickers();
 initSheet();
 initHistory();
 initIncoming();

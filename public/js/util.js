@@ -44,3 +44,34 @@ export function toLocalInput(ms) {
 }
 
 export const fromLocalInput = (value) => (value ? new Date(value).getTime() : undefined);
+
+// Date/time fields: a click anywhere in the field opens the browser's calendar
+// and clock picker (instead of putting the cursor in the day/month/hour parts).
+// Quick-pick buttons (<div class="quick" data-for="field-id">) set the field
+// to "+N hours from now" (data-hours), "tomorrow at HH:00" (data-tomorrow) or
+// empty (data-clear). Times are rounded to 5 minutes.
+export function initDatePickers() {
+  document.addEventListener("click", (e) => {
+    const input = e.target.closest('input[type="datetime-local"]');
+    if (input && !input.disabled && !input.readOnly) {
+      try { input.showPicker(); } catch {} // older browsers: the field still works as before
+      return;
+    }
+    const button = e.target.closest(".quick button");
+    if (!button) return;
+    const field = $(button.closest(".quick").dataset.for);
+    if (field.disabled) return;
+    const fiveMinutes = 5 * 60e3;
+    if ("clear" in button.dataset) field.value = "";
+    else if (button.dataset.tomorrow) {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      d.setHours(Number(button.dataset.tomorrow), 0, 0, 0);
+      field.value = toLocalInput(d.getTime());
+    } else {
+      const at = Date.now() + Number(button.dataset.hours) * 3600e3;
+      field.value = toLocalInput(Math.round(at / fiveMinutes) * fiveMinutes);
+    }
+    field.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
