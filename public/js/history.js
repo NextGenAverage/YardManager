@@ -12,13 +12,13 @@ const trailerLink = (t) => `<button class="link" data-tr="${esc(t)}">${esc(t)}</
 const place = (spot) => esc(spotName(spot));
 
 const FIELD_NAMES = {
-  trailer: "trailer number", status: "status", note: "note",
+  plate: "reg. number", trailer: "reg. number", trailer_id: "trailer ID", status: "status", note: "note",
   arrived_at: "arrival", departed_at: "departure",
 };
 
 // One history entry as a sentence, e.g. "ABC123 moved Door 201 → Parking spot 5".
 function describe(e) {
-  const t = trailerLink(e.trailer);
+  const t = trailerLink(e.plate);
   const d = e.details || {};
   switch (e.action) {
     case "arrive": return `${t} arrived at ${place(e.to_spot)}${d.status ? ` (${esc(d.status)})` : ""}`;
@@ -50,7 +50,9 @@ function eventsHtml(events) {
 function visitsHtml(visits) {
   return "<ul>" + visits.map((v) => {
     const end = v.departed_at;
-    let h = `<li class="visit"><span>Arrived</span><span>${formatTime(v.arrived_at)}</span>`;
+    let h = `<li class="visit">`;
+    if (v.trailer_id) h += `<span>Trailer ID</span><span>${esc(v.trailer_id)}</span>`;
+    h += `<span>Arrived</span><span>${formatTime(v.arrived_at)}</span>`;
     if (!end) {
       return h + `<span>Now</span><span>In the yard at ${place(v.spot_id)} · ${duration(Date.now() - v.arrived_at)}</span></li>`;
     }
@@ -83,7 +85,7 @@ export async function openHistory(q) {
 
   let html = "";
   if (q.trailer) {
-    html += "<h4>Visits</h4>" + (h.visits.length ? visitsHtml(h.visits) : "<p>No visits found for this trailer number.</p>");
+    html += "<h4>Visits</h4>" + (h.visits.length ? visitsHtml(h.visits) : "<p>No visits found for this reg. number or trailer ID.</p>");
     if (q.spot) html += `<p><button class="link" data-spot="${esc(q.spot)}">Show history for ${place(q.spot)}</button></p>`;
   }
   $("h-body").innerHTML = html + "<h4>Changes</h4>" + eventsHtml(h.events);

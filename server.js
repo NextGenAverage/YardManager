@@ -99,22 +99,23 @@ app.get("/api/yard", viewer, (_req, res) => res.json(state()));
 // note and damaged of the trailer already there.
 app.post("/api/place", worker, (req, res) => {
   const spot = clean(req.body.spot, 20);
-  const trailer = clean(req.body.trailer, 20).toUpperCase();
+  const plate = clean(req.body.plate, 20).toUpperCase();
+  const trailerId = clean(req.body.trailerId, 60);
   const status = clean(req.body.status, 40);
   const note = clean(req.body.note, 200);
   const arrivedAt = time(req.body.arrivedAt);
   const err = checkSpot(spot)
-    || (!trailer && "Trailer number is required.")
+    || (!plate && "Reg. number (licence plate) is required.")
     || (!yard.statusExists(status) && "Unknown status.")
     || checkTime(arrivedAt);
   if (err) return res.status(400).json({ error: err });
   if (!auth.atLeast(req.user.role, "operator")) {
     const here = yard.getPlacements()[spot];
-    if (!here || here.trailer !== trailer || arrivedAt !== undefined) {
+    if (!here || here.plate !== plate || here.trailerId !== trailerId || arrivedAt !== undefined) {
       return res.status(403).json({ error: "Workers can change status, note and damaged only. Ask an operator for other changes." });
     }
   }
-  yard.placeTrailer({ spot, trailer, status, note, damaged: !!req.body.damaged, arrivedAt, by: who(req) });
+  yard.placeTrailer({ spot, plate, trailerId, status, note, damaged: !!req.body.damaged, arrivedAt, by: who(req) });
   changed(res);
 });
 
@@ -155,10 +156,10 @@ app.post("/api/visit-times", operator, (req, res) => {
   changed(res);
 });
 
-// ?trailer=ABC123, ?spot=201, or nothing for the latest changes in the whole yard.
+// ?trailer=<plate or trailer ID>, ?spot=201, or nothing for the latest changes in the whole yard.
 app.get("/api/history", viewer, (req, res) => {
   res.json(yard.getHistory({
-    trailer: clean(req.query.trailer, 20).toUpperCase() || undefined,
+    trailer: clean(req.query.trailer, 60).toUpperCase() || undefined,
     spot: clean(req.query.spot, 20) || undefined,
   }));
 });

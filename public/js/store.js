@@ -4,7 +4,7 @@ import { textColor } from "./util.js";
 export const yard = {
   sections: [],   // layout: [{ title, kind, spots: [...], x, y, ... }]
   statuses: {},   // { "Loading": "#f2a516", ... }
-  placements: {}, // { spotId: { trailer, status, note, damaged, since } }
+  placements: {}, // { spotId: { plate, trailerId, status, note, damaged, since } }
 };
 
 export const ui = {

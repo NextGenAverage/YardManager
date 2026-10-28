@@ -23,7 +23,7 @@
         <button class="link" id="b-logout">Log out</button>
       </small>
     </h1>
-    <input id="q" type="search" placeholder="Find trailer number or note…" autocomplete="off">
+    <input id="q" type="search" placeholder="Find reg. number, trailer ID or note…" autocomplete="off">
     <div id="msg"></div>
     <div class="legend">
       <span class="items" id="legend-items"></span>
@@ -61,7 +61,8 @@
   <!-- Edit sheet: opens when a spot is tapped (sheet.js) -->
   <div id="sheet">
     <h3 id="sh-title"></h3>
-    <input id="f-tr" placeholder="Trailer number" autocapitalize="characters" autocomplete="off">
+    <input id="f-tr" placeholder="Reg. number (licence plate)" autocapitalize="characters" autocomplete="off">
+    <input id="f-tid" placeholder="Trailer ID (optional)" autocomplete="off">
     <div class="chips" id="chips"></div>
     <input id="f-note" placeholder="Note (optional)" autocomplete="off">
     <div class="row sheet-row">

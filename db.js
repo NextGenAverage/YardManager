@@ -4,6 +4,8 @@
 // A "visit" is one trailer's stay in the yard: it is created when the trailer
 // is first placed and gets departed_at when it leaves. A visit with
 // departed_at NULL is a trailer currently in the yard, standing on spot_id.
+// A trailer is identified by its licence plate ("plate", shown on the map);
+// "trailer_id" is the carrier's longer trailer name (optional, searchable).
 const fs = require("fs");
 const path = require("path");
 const Database = require("better-sqlite3");
@@ -94,6 +96,20 @@ const migrations = [
   );
   CREATE INDEX sessions_user ON sessions(user_id);
   `,
+  `
+  -- The number shown on the map is the licence plate (Reg). Trailer ID is the
+  -- carrier's longer name for the trailer: searchable, shown in the sheet.
+  ALTER TABLE visits RENAME COLUMN trailer TO plate;
+  ALTER TABLE visits ADD COLUMN trailer_id TEXT NOT NULL DEFAULT '';
+  ALTER TABLE events RENAME COLUMN trailer TO plate;
+  DROP INDEX visits_active_trailer;
+  DROP INDEX visits_trailer;
+  DROP INDEX events_trailer;
+  CREATE UNIQUE INDEX visits_active_plate ON visits(plate) WHERE departed_at IS NULL;
+  CREATE INDEX visits_plate ON visits(plate);
+  CREATE INDEX visits_trailer_id ON visits(trailer_id COLLATE NOCASE);
+  CREATE INDEX events_plate ON events(plate);
+  `,
 ];
 
 function migrate() {
@@ -149,11 +165,14 @@ function getSections() {
   }));
 }
 
-// Current yard: { spotId: { trailer, status, note, damaged, since } }
+// Current yard: { spotId: { plate, trailerId, status, note, damaged, since } }
 function getPlacements() {
   const out = {};
   for (const v of db.prepare("SELECT * FROM visits WHERE departed_at IS NULL").all()) {
-    out[v.spot_id] = { trailer: v.trailer, status: v.status, note: v.note, damaged: !!v.damaged, since: v.arrived_at };
+    out[v.spot_id] = {
+      plate: v.plate, trailerId: v.trailer_id, status: v.status, note: v.note,
+      damaged: !!v.damaged, since: v.arrived_at,
+    };
   }
   return out;
 }
@@ -167,14 +186,14 @@ function statusExists(name) {
 }
 
 const activeAt = db.prepare("SELECT * FROM visits WHERE departed_at IS NULL AND spot_id = ?");
-const activeTrailer = db.prepare("SELECT * FROM visits WHERE departed_at IS NULL AND trailer = ?");
+const activePlate = db.prepare("SELECT * FROM visits WHERE departed_at IS NULL AND plate = ?");
 const setSpot = db.prepare("UPDATE visits SET spot_id = ? WHERE id = ?");
 const setDeparted = db.prepare("UPDATE visits SET departed_at = ? WHERE id = ?");
-const insertEvent = db.prepare(`INSERT INTO events (at, user_name, action, visit_id, trailer, from_spot, to_spot, details)
-  VALUES (@at, @by, @action, @visit_id, @trailer, @from, @to, @details)`);
+const insertEvent = db.prepare(`INSERT INTO events (at, user_name, action, visit_id, plate, from_spot, to_spot, details)
+  VALUES (@at, @by, @action, @visit_id, @plate, @from, @to, @details)`);
 
 function log(action, v, { by, from = null, to = null, details = null }) {
-  insertEvent.run({ at: Date.now(), by: by || null, action, visit_id: v.id, trailer: v.trailer,
+  insertEvent.run({ at: Date.now(), by: by || null, action, visit_id: v.id, plate: v.plate,
     from, to, details: details && JSON.stringify(details) });
 }
 
@@ -191,11 +210,11 @@ class YardError extends Error {}
 const GONE = "That trailer has already been moved or removed.";
 
 // Save the trailer on a spot (new trailer, or edit of the one already there).
-// If that trailer number is already elsewhere in the yard it is moved here,
+// If that plate is already elsewhere in the yard the trailer is moved here,
 // keeping its arrival time, and any other trailer on this spot departs.
-const placeTrailer = db.transaction(({ spot, trailer, status, note, damaged, arrivedAt, by }) => {
+const placeTrailer = db.transaction(({ spot, plate, trailerId, status, note, damaged, arrivedAt, by }) => {
   const here = activeAt.get(spot);
-  let v = activeTrailer.get(trailer);
+  let v = activePlate.get(plate);
   if (v && here && v.id !== here.id) departVisit(here, by);
   if (v && v.spot_id !== spot) {
     setSpot.run(spot, v.id);
@@ -203,17 +222,17 @@ const placeTrailer = db.transaction(({ spot, trailer, status, note, damaged, arr
   }
   v = v || here;
   if (!v) {
-    const { lastInsertRowid } = db.prepare(`INSERT INTO visits (trailer, status, note, damaged, spot_id, arrived_at)
-      VALUES (?, ?, ?, ?, ?, ?)`).run(trailer, status, note, +damaged, spot, arrivedAt || Date.now());
-    log("arrive", { id: lastInsertRowid, trailer }, { by, to: spot, details: { status, note, damaged } });
+    const { lastInsertRowid } = db.prepare(`INSERT INTO visits (plate, trailer_id, status, note, damaged, spot_id, arrived_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`).run(plate, trailerId, status, note, +damaged, spot, arrivedAt || Date.now());
+    log("arrive", { id: lastInsertRowid, plate }, { by, to: spot, details: { status, note, damaged, trailer_id: trailerId } });
     return;
   }
-  // Same visit: status/note/damaged change, corrected number or arrival time.
-  const diff = changes(v, { trailer, status, note, damaged: +damaged, arrived_at: arrivedAt });
+  // Same visit: status/note/damaged change, corrected plate, trailer ID or arrival time.
+  const diff = changes(v, { plate, trailer_id: trailerId, status, note, damaged: +damaged, arrived_at: arrivedAt });
   if (!diff) return;
-  db.prepare("UPDATE visits SET trailer = ?, status = ?, note = ?, damaged = ?, arrived_at = ? WHERE id = ?")
-    .run(trailer, status, note, +damaged, arrivedAt || v.arrived_at, v.id);
-  log("edit", { id: v.id, trailer }, { by, to: spot, details: diff });
+  db.prepare("UPDATE visits SET plate = ?, trailer_id = ?, status = ?, note = ?, damaged = ?, arrived_at = ? WHERE id = ?")
+    .run(plate, trailerId, status, note, +damaged, arrivedAt || v.arrived_at, v.id);
+  log("edit", { id: v.id, plate }, { by, to: spot, details: diff });
 });
 
 const moveTrailer = db.transaction(({ from, to, by }) => {
@@ -256,15 +275,16 @@ const correctTimes = db.transaction(({ id, arrivedAt, departedAt, by }) => {
   log("edit", v, { by, from: v.spot_id, details: diff });
 });
 
-// History for one trailer (its visits and events), one spot, or the whole yard.
+// History for one trailer (found by plate or trailer ID: its visits and events),
+// one spot, or the whole yard.
 function getHistory({ trailer, spot, limit = 200 }) {
   const ev = (where, ...args) => db.prepare(`SELECT * FROM events ${where} ORDER BY at DESC, id DESC LIMIT ${limit}`)
     .all(...args).map((e) => ({ ...e, details: e.details && JSON.parse(e.details) }));
   if (trailer) {
-    return {
-      visits: db.prepare("SELECT * FROM visits WHERE trailer = ? ORDER BY arrived_at DESC LIMIT 50").all(trailer),
-      events: ev("WHERE trailer = ?", trailer),
-    };
+    const visits = db.prepare(`SELECT * FROM visits WHERE plate = ? OR trailer_id = ? COLLATE NOCASE
+      ORDER BY arrived_at DESC LIMIT 50`).all(trailer, trailer);
+    const plates = [...new Set([trailer, ...visits.map((v) => v.plate)])];
+    return { visits, events: ev(`WHERE plate IN (${plates.map(() => "?").join(",")})`, ...plates) };
   }
   if (spot) return { events: ev("WHERE from_spot = ? OR to_spot = ?", spot, spot) };
   return { events: ev("") };

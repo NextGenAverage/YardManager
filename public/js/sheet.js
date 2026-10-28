@@ -1,4 +1,4 @@
-// The edit sheet that slides up when a spot is tapped: trailer number, status,
+// The edit sheet that slides up when a spot is tapped: plate, trailer ID, status,
 // note, damaged, arrival time, and the Move / Departed / Remove buttons.
 import { $, esc, toLocalInput, fromLocalInput } from "./util.js";
 import { yard, ui, can, statusStyle, spotName } from "./store.js";
@@ -33,6 +33,7 @@ export function openSheet(id, sectionIndex) {
   const full = can("operator");
   editable = full || (can("worker") && !!t);
   $("f-tr").disabled = !full;
+  $("f-tid").disabled = !full;
   $("f-arr").disabled = !full;
   $("f-note").disabled = !editable;
   $("f-dmg").disabled = !editable;
@@ -40,7 +41,8 @@ export function openSheet(id, sectionIndex) {
   $("b-cancel").textContent = editable ? "Cancel" : "Close";
 
   $("sh-title").textContent = spotName(id);
-  $("f-tr").value = t ? t.trailer : "";
+  $("f-tr").value = t ? t.plate : "";
+  $("f-tid").value = t?.trailerId || "";
   $("f-note").value = t?.note || "";
   status = t ? t.status : yard.sections[sectionIndex].defaultStatus;
   renderChips();
@@ -62,11 +64,12 @@ export function closeSheet() {
 }
 
 async function save() {
-  const trailer = $("f-tr").value.trim().toUpperCase();
-  if (!trailer) return $("f-tr").focus();
+  const plate = $("f-tr").value.trim().toUpperCase();
+  if (!plate) return $("f-tr").focus();
   const arrival = $("f-arr").value;
   const ok = await send("/api/place", {
-    spot, trailer, status, damaged,
+    spot, plate, status, damaged,
+    trailerId: $("f-tid").value.trim(),
     note: $("f-note").value.trim(),
     arrivedAt: arrival !== arrivalShown ? fromLocalInput(arrival) : undefined,
   });
@@ -74,12 +77,12 @@ async function save() {
 }
 
 async function depart() {
-  if (!confirm(`${yard.placements[spot].trailer} has left the yard?`)) return;
+  if (!confirm(`${yard.placements[spot].plate} has left the yard?`)) return;
   if (await send("/api/depart", { spot })) closeSheet();
 }
 
 async function remove() {
-  const msg = `Remove ${yard.placements[spot].trailer}?\n\n`
+  const msg = `Remove ${yard.placements[spot].plate}?\n\n`
     + "Only use this if it was entered by mistake. If the trailer has left, use Departed instead.";
   if (!confirm(msg)) return;
   if (await send("/api/remove", { spot })) closeSheet();
@@ -94,7 +97,7 @@ function move() {
 
 function history() {
   const t = yard.placements[spot];
-  openHistory(t ? { trailer: t.trailer, spot } : { spot });
+  openHistory(t ? { trailer: t.plate, spot } : { spot });
 }
 
 export function initSheet() {

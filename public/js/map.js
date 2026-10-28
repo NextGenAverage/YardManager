@@ -11,7 +11,7 @@ export function renderLegend() {
 }
 
 // One spot: a door (with its door sign) or a parking/unassigned slot, with the
-// trailer on it if there is one. The trailer number is filled in afterwards
+// trailer on it if there is one. The plate (reg. number) is filled in afterwards
 // with textContent.
 function spotHtml(section, index, spot) {
   const t = yard.placements[spot];
@@ -50,7 +50,7 @@ export function render() {
 
   for (const b of document.querySelectorAll(".bay")) {
     const t = yard.placements[b.dataset.id];
-    if (t) b.querySelector(".tr").textContent = t.trailer;
+    if (t) b.querySelector(".tr").textContent = t.plate;
     if (b.dataset.id === ui.moving) b.classList.add("lift");
   }
   fitNumbers();
@@ -59,7 +59,7 @@ export function render() {
   $("count").textContent = `${Object.keys(yard.placements).length} of ${total} spots in use`;
   highlightSearch(false);
   if (ui.moving && !$("q").value) {
-    showMsg(`Moving ${yard.placements[ui.moving].trailer}: tap an open spot to place it, or tap it again to cancel`);
+    showMsg(`Moving ${yard.placements[ui.moving].plate}: tap an open spot to place it, or tap it again to cancel`);
   }
 }
 
@@ -82,7 +82,7 @@ function sizeScene() {
   }
 }
 
-// Trailer numbers start large and shrink only as much as needed to fit their spot.
+// Plates start large and shrink only as much as needed to fit their spot.
 function fitNumbers() {
   for (const el of document.querySelectorAll(".trl .tr")) {
     let size = 18;
@@ -93,14 +93,14 @@ function fitNumbers() {
   }
 }
 
-// Highlight trailers whose number or note contains the search text.
+// Highlight trailers whose plate, trailer ID or note contains the search text.
 // scroll: bring the first match into view (only while the user is typing).
 export function highlightSearch(scroll) {
   const q = $("q").value.trim().toUpperCase();
   let first = null, count = 0;
   for (const b of document.querySelectorAll(".bay")) {
     const t = yard.placements[b.dataset.id];
-    const hit = !!(q && t && (t.trailer.includes(q) || (t.note || "").toUpperCase().includes(q)));
+    const hit = !!(q && t && [t.plate, t.trailerId, t.note].some((text) => (text || "").toUpperCase().includes(q)));
     b.classList.toggle("hit", hit);
     if (hit) { count++; first = first || b; }
   }

@@ -20,7 +20,7 @@ function tap(spot, sectionIndex) {
   if (!ui.moving) return openSheet(spot, sectionIndex);
   if (spot === ui.moving) return cancelMove();
   if (yard.placements[spot]) {
-    showMsg(`That spot is taken. Tap an open spot, or tap ${yard.placements[ui.moving].trailer} again to cancel.`);
+    showMsg(`That spot is taken. Tap an open spot, or tap ${yard.placements[ui.moving].plate} again to cancel.`);
     return;
   }
   const from = ui.moving;
