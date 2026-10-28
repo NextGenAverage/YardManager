@@ -7,6 +7,7 @@ import { render, renderLegend, highlightSearch } from "./map.js";
 import { initZoom } from "./zoom.js";
 import { initSheet, openSheet, closeSheet, isSheetOpen } from "./sheet.js";
 import { initHistory, openHistory, closeHistory, isHistoryOpen } from "./history.js";
+import { initIncoming, renderIncoming, closeIncoming, isIncomingOpen } from "./incoming.js";
 
 function cancelMove() {
   ui.moving = null;
@@ -17,6 +18,7 @@ function cancelMove() {
 // lifted (ui.moving) and the next tap on an open spot moves it there.
 function tap(spot, sectionIndex) {
   if (ui.busy) return;
+  if (ui.arriving) return placeArrival(spot, sectionIndex);
   if (!ui.moving) return openSheet(spot, sectionIndex);
   if (spot === ui.moving) return cancelMove();
   if (yard.placements[spot]) {
@@ -26,6 +28,19 @@ function tap(spot, sectionIndex) {
   const from = ui.moving;
   ui.moving = null;
   send("/api/move", { from, to: spot });
+}
+
+// "Arrived" in the Incoming panel: the next tap on an open spot opens the
+// sheet for that trailer there, filled in from the Incoming entry.
+function placeArrival(spot, sectionIndex) {
+  if (yard.placements[spot]) {
+    showMsg(`That spot is taken. Tap an open spot for ${ui.arriving.plate}, or press Esc to cancel.`);
+    return;
+  }
+  const entry = ui.arriving;
+  ui.arriving = null;
+  render();
+  openSheet(spot, sectionIndex, entry);
 }
 
 $("main").onclick = (e) => {
@@ -45,13 +60,16 @@ $("msg").onclick = (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   if (isHistoryOpen()) closeHistory();
+  else if (isIncomingOpen()) closeIncoming();
   else if (isSheetOpen()) closeSheet();
   else if (ui.moving) cancelMove();
+  else if (ui.arriving) { ui.arriving = null; render(); }
 });
 
 onYardChange(() => {
   renderLegend();
   render();
+  renderIncoming();
 });
 
 // Who is logged in. Not logged in (or session ended): go to the login page.
@@ -71,6 +89,7 @@ $("b-logout").onclick = async () => {
 initZoom();
 initSheet();
 initHistory();
+initIncoming();
 showMsg("Loading…");
 
 // Live updates: the server sends the whole yard every time anything changes.
@@ -92,5 +111,8 @@ function connectLive() {
 }
 connectLive();
 
-// Redraw once a minute so dwell times count up.
-setInterval(() => { if (!ui.moving) render(); }, 60000);
+// Redraw once a minute so dwell times count up and late markers appear.
+setInterval(() => {
+  if (!ui.moving) render();
+  renderIncoming();
+}, 60000);

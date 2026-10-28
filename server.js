@@ -44,6 +44,7 @@ function state() {
     buildings: yard.getBuildings(),
     placements: yard.getPlacements(),
     carriers: yard.getCarriers(),
+    incoming: yard.getIncoming(),
   };
 }
 
@@ -54,6 +55,12 @@ function checkSpot(spot) {
 }
 // Times arrive as milliseconds; missing means "don't change".
 const time = (v) => (v === undefined || v === null || v === "" ? undefined : Number(v));
+// Planned times may be in the future (up to 60 days ahead).
+function checkPlannedTime(t) {
+  if (t === undefined || t === null) return null;
+  const now = Date.now();
+  return Number.isFinite(t) && t > now - 400 * 864e5 && t < now + 60 * 864e5 ? null : "That planned time isn't valid.";
+}
 function checkTime(t) {
   if (t === undefined) return null;
   const now = Date.now();
@@ -113,21 +120,26 @@ app.post("/api/place", worker, (req, res) => {
   const status = clean(req.body.status, 40);
   const note = clean(req.body.note, 200);
   const arrivedAt = time(req.body.arrivedAt);
+  // Planned departure: a time, null to clear it, or left out for no change.
+  const expectedDeparture = req.body.expectedDeparture === null ? null : time(req.body.expectedDeparture);
   const err = checkSpot(spot)
     || (!plate && "Reg. number (licence plate) is required.")
     || (!yard.statusExists(status) && "Unknown status.")
-    || checkTime(arrivedAt);
+    || checkTime(arrivedAt)
+    || checkPlannedTime(expectedDeparture);
   if (err) return res.status(400).json({ error: err });
   if (auth.atLeast(req.user.role, "operator") && !trailerId && !yard.getTrailer(plate)) {
     return res.status(400).json({ error: "Trailer ID is required for a new reg. number." });
   }
   if (!auth.atLeast(req.user.role, "operator")) {
     const here = yard.getPlacements()[spot];
-    if (!here || here.plate !== plate || here.trailerId !== trailerId || arrivedAt !== undefined) {
+    if (!here || here.plate !== plate || here.trailerId !== trailerId || arrivedAt !== undefined || expectedDeparture !== undefined) {
       return res.status(403).json({ error: "Workers can change status, note and damaged only. Ask an operator for other changes." });
     }
   }
-  yard.placeTrailer({ spot, plate, trailerId, carrier, status, note, damaged: !!req.body.damaged, arrivedAt, by: who(req) });
+  yard.placeTrailer({
+    spot, plate, trailerId, carrier, status, note, damaged: !!req.body.damaged, arrivedAt, expectedDeparture, by: who(req),
+  });
   changed(res);
 });
 
@@ -236,6 +248,30 @@ app.post("/api/trailers/import", express.json({ limit: "10mb" }), operator, (req
   const s = state();
   for (const l of listeners.keys()) l.write(event(s));
   res.json({ summary, errors, warnings });
+});
+
+// ---- Incoming: trailers expected to arrive (operators change, everyone sees) ----
+
+app.post("/api/incoming", operator, (req, res) => {
+  const plate = normalizePlate(req.body.plate);
+  const expectedAt = time(req.body.expectedAt);
+  const err = (!plate && "Reg. number is required.")
+    || (expectedAt === undefined && "Expected time is required.")
+    || checkPlannedTime(expectedAt);
+  if (err) return res.status(400).json({ error: err });
+  yard.saveIncoming({
+    plate, expectedAt,
+    trailerId: clean(req.body.trailerId, 60),
+    carrier: clean(req.body.carrier, 10) || null,
+    note: clean(req.body.note, 200),
+    by: who(req),
+  });
+  changed(res);
+});
+
+app.post("/api/incoming/delete", operator, (req, res) => {
+  yard.deleteIncoming(Number(req.body.id));
+  changed(res);
 });
 
 // ---- Map editor (admins) ----

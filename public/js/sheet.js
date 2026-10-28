@@ -10,6 +10,7 @@ let spot = null;       // spot the sheet is open for
 let status = "";       // selected status chip
 let damaged = false;
 let arrivalShown = ""; // arrival time as first shown, to tell if it was edited
+let departureShown = ""; // planned departure as first shown
 let editable = false;  // may this user change status/note/damaged here?
 
 export const isSheetOpen = () => spot !== null;
@@ -49,6 +50,12 @@ async function lookUpPlate() {
     $("f-tid").value = "";
     $("f-carrier").value = "";
   }
+  // Not in the register but on the Incoming list: use what was entered there.
+  const expected = !link && yard.incoming.find((e) => e.plate === plate.replace(/[^A-Z0-9]/g, ""));
+  if (expected && !$("f-tid").value) {
+    $("f-tid").value = expected.trailerId;
+    $("f-carrier").value = expected.carrier || "";
+  }
   linkedId = link ? link.trailerId : null;
   showTrailerIdState();
 }
@@ -65,7 +72,8 @@ function showTrailerIdState(error) {
   else hint.textContent = "New reg. number: enter its trailer ID and carrier.";
 }
 
-export function openSheet(id, sectionIndex) {
+// arrival: an Incoming entry being placed here ("Arrived" in the Incoming panel).
+export function openSheet(id, sectionIndex, arrival) {
   spot = id;
   const t = yard.placements[id];
   // What this user may change (the server checks the same rules):
@@ -75,6 +83,7 @@ export function openSheet(id, sectionIndex) {
   $("f-tr").disabled = !full;
   $("f-tid").disabled = !full;
   $("f-arr").disabled = !full;
+  $("f-exp").disabled = !full;
   $("f-note").disabled = !editable;
   $("f-dmg").disabled = !editable;
   $("b-save").hidden = !editable;
@@ -93,14 +102,21 @@ export function openSheet(id, sectionIndex) {
   renderDamaged();
   arrivalShown = t ? toLocalInput(t.since) : "";
   $("f-arr").value = arrivalShown;
+  departureShown = t?.expectedDeparture ? toLocalInput(t.expectedDeparture) : "";
+  $("f-exp").value = departureShown;
   // Arrival time and Move/Departed/Remove only apply to a spot with a trailer.
   $("f-arr-wrap").hidden = !t;
+  $("f-exp-wrap").hidden = !t && !full; // operators can plan the departure of a new trailer too
   $("occ-row").hidden = !t || !full;
   $("sheet").classList.add("open");
   if (!t && full) setTimeout(() => $("f-tr").focus(), 220);
   linkedId = null;
   showTrailerIdState();
-  if (t) lookUpPlate();
+  if (arrival) {
+    $("f-tr").value = arrival.plate;
+    if (arrival.note) $("f-note").value = arrival.note;
+  }
+  if (t || arrival) lookUpPlate();
 }
 
 export function closeSheet() {
@@ -126,6 +142,8 @@ async function save() {
     carrier: $("f-carrier").value || null,
     note: $("f-note").value.trim(),
     arrivedAt: arrival !== arrivalShown ? fromLocalInput(arrival) : undefined,
+    // Planned departure: only sent when changed; an emptied field clears it.
+    expectedDeparture: $("f-exp").value !== departureShown ? fromLocalInput($("f-exp").value) ?? null : undefined,
   });
   if (ok) closeSheet();
 }

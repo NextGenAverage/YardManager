@@ -7,11 +7,13 @@ export const yard = {
   placements: {}, // { spotId: { plate, trailerId, carrier, status, note, damaged, since } }
   carriers: {},   // { "DSV": { name: "DSV", color: "#0b3d91" }, ... }
   buildings: [],  // grey warehouse blocks: [{ label, x, y, w, h }]
+  incoming: [],   // expected arrivals: [{ id, plate, trailerId, carrier, expectedAt, note }]
 };
 
 export const ui = {
   user: null,   // logged-in user: { name, username, role }
   moving: null, // spot ID of the trailer lifted with "Move", waiting for a target
+  arriving: null, // Incoming entry being placed: tap an open spot for it
   busy: false,  // a request to the server is in progress
 };
 
@@ -27,10 +29,12 @@ export const onYardChange = (fn) => listeners.push(fn);
 export function setYard(state) {
   yard.sections = state.sections;
   yard.buildings = state.buildings;
+  yard.incoming = state.incoming;
   yard.placements = state.placements;
   yard.statuses = Object.fromEntries(state.statuses.map((s) => [s.name, s.color]));
   yard.carriers = Object.fromEntries(state.carriers.map((c) => [c.code, { name: c.name, color: c.color }]));
   if (ui.moving && !yard.placements[ui.moving]) ui.moving = null; // someone else moved it
+  if (ui.arriving && !yard.incoming.some((e) => e.id === ui.arriving.id)) ui.arriving = null; // placed by someone else
   listeners.forEach((fn) => fn());
 }
 

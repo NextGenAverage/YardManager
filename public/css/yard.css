@@ -1439,3 +1439,129 @@ a.btn {
   flex: 0 0 auto;
   padding: 8px 14px;
 }
+
+
+/* ============================================================
+   Planned times: late marker, Incoming panel
+   ============================================================ */
+
+/* Trailer past its planned departure */
+.trl .dw .late {
+  padding: 0 3px;
+  border-radius: 3px;
+  background: #e5392f;
+  color: #fff;
+  font-weight: 800;
+}
+
+/* Header button when an expected arrival is late */
+.zoom button.late-btn {
+  border-color: #e5392f;
+  color: #e5392f;
+  font-weight: 700;
+}
+
+/* Incoming panel slides in from the right, like History */
+#incoming {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, .35);
+}
+
+#incoming.open {
+  display: block;
+}
+
+#incoming .panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  max-width: 520px;
+  overflow: auto;
+  padding: 12px 14px calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--card);
+  box-shadow: -8px 0 30px rgba(0, 0, 0, .25);
+}
+
+.in-add {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.in-add input,
+.in-add select {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+}
+
+.in-add .btn {
+  flex: 0 0 auto;
+  padding: 8px 18px;
+}
+
+.in-add [name="plate"] {
+  text-transform: uppercase;
+}
+
+.in-add [name="plate"]::placeholder {
+  text-transform: none;
+}
+
+.in-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.in-list li {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.in-list li small {
+  display: block;
+  color: var(--mute);
+}
+
+.in-list li.late .in-when {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.in-list li.empty {
+  color: var(--mute);
+}
+
+.in-when {
+  margin-left: 6px;
+  font-size: 13px;
+  color: var(--mute);
+}
+
+.in-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.in-actions .btn {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  font-size: 13px;
+}

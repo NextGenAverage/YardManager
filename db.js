@@ -221,6 +221,24 @@ const migrations = [
     layout   TEXT NOT NULL      -- JSON: { sections: [...], buildings: [...] }
   );
   `,
+  `
+  -- Planned times. A visit can have a planned departure (shown as late on the
+  -- map once passed) and keeps the planned arrival from the Incoming list.
+  ALTER TABLE visits ADD COLUMN expected_departure INTEGER;
+  ALTER TABLE visits ADD COLUMN expected_arrival INTEGER;
+  -- Incoming: trailers expected to arrive. An entry is removed when a trailer
+  -- with that reg. number is placed on the map.
+  CREATE TABLE incoming (
+    id          INTEGER PRIMARY KEY,
+    plate       TEXT NOT NULL UNIQUE,
+    trailer_id  TEXT NOT NULL DEFAULT '',
+    carrier     TEXT,
+    expected_at INTEGER NOT NULL,
+    note        TEXT NOT NULL DEFAULT '',
+    created_at  INTEGER NOT NULL,
+    created_by  TEXT
+  );
+  `,
 ];
 
 function migrate() {
@@ -326,7 +344,7 @@ function getPlacements() {
   for (const v of rows) {
     out[v.spot_id] = {
       plate: v.plate, trailerId: v.trailer_id, carrier: v.carrier ?? null, status: v.status, note: v.note,
-      damaged: !!v.damaged, since: v.arrived_at,
+      damaged: !!v.damaged, since: v.arrived_at, expectedDeparture: v.expected_departure ?? null,
     };
   }
   return out;
@@ -363,6 +381,30 @@ function changes(v, next) {
 // the server turns it into an error message for the user.
 class YardError extends Error {}
 const GONE = "That trailer has already been moved or removed.";
+
+// ---- Incoming: trailers expected to arrive ----
+
+function getIncoming() {
+  return db.prepare("SELECT * FROM incoming ORDER BY expected_at, id").all().map((r) => ({
+    id: r.id, plate: r.plate, trailerId: r.trailer_id, carrier: r.carrier ?? null,
+    expectedAt: r.expected_at, note: r.note, createdBy: r.created_by,
+  }));
+}
+
+// Add an expected arrival, or change the one for that reg. number.
+function saveIncoming({ plate, trailerId, carrier, expectedAt, note, by }) {
+  if (carrier && !carrierExists(carrier)) throw new YardError(`Unknown carrier ${carrier}.`);
+  if (activePlate.get(plate)) throw new YardError(`${plate} is already in the yard.`);
+  db.prepare(`INSERT INTO incoming (plate, trailer_id, carrier, expected_at, note, created_at, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT (plate) DO UPDATE SET trailer_id = excluded.trailer_id, carrier = excluded.carrier,
+      expected_at = excluded.expected_at, note = excluded.note`)
+    .run(plate, trailerId, carrier || null, expectedAt, note, Date.now(), by || null);
+}
+
+function deleteIncoming(id) {
+  db.prepare("DELETE FROM incoming WHERE id = ?").run(id);
+}
 
 // ---- Carriers ----
 
@@ -449,7 +491,8 @@ const importTrailers = db.transaction((rows, by) => {
 // keeping its arrival time, and any other trailer on this spot departs.
 // The register decides the trailer ID and carrier of a known reg. number; a new
 // reg. number is added to the register with the trailer ID and carrier given.
-const placeTrailer = db.transaction(({ spot, plate, trailerId, carrier, status, note, damaged, arrivedAt, by }) => {
+// expectedDeparture: a time, null to clear it, or undefined to leave it as it is.
+const placeTrailer = db.transaction(({ spot, plate, trailerId, carrier, status, note, damaged, arrivedAt, expectedDeparture, by }) => {
   const link = getTrailer(plate);
   if (link && trailerId && link.trailerId !== trailerId) {
     throw new YardError(`${plate} is linked to trailer ID ${link.trailerId}. Change the link on the Manage page.`);
@@ -469,16 +512,25 @@ const placeTrailer = db.transaction(({ spot, plate, trailerId, carrier, status, 
   }
   v = v || here;
   if (!v) {
-    const { lastInsertRowid } = db.prepare(`INSERT INTO visits (plate, trailer_id, status, note, damaged, spot_id, arrived_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)`).run(plate, trailerId, status, note, +damaged, spot, arrivedAt || Date.now());
-    log("arrive", { id: lastInsertRowid, plate }, { by, to: spot, details: { status, note, damaged, trailer_id: trailerId } });
+    // A new arrival: if it was on the Incoming list, take it off and keep the planned time.
+    const expected = db.prepare("SELECT * FROM incoming WHERE plate = ?").get(plate);
+    if (expected) db.prepare("DELETE FROM incoming WHERE id = ?").run(expected.id);
+    const { lastInsertRowid } = db.prepare(`INSERT INTO visits (plate, trailer_id, status, note, damaged, spot_id, arrived_at,
+      expected_arrival, expected_departure) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(plate, trailerId, status, note, +damaged, spot, arrivedAt || Date.now(), expected?.expected_at ?? null, expectedDeparture ?? null);
+    const details = { status, note, damaged, trailer_id: trailerId };
+    if (expected) details.expected_arrival = expected.expected_at;
+    log("arrive", { id: lastInsertRowid, plate }, { by, to: spot, details });
     return;
   }
-  // Same visit: status/note/damaged change, corrected plate, trailer ID or arrival time.
-  const diff = changes(v, { plate, trailer_id: trailerId, status, note, damaged: +damaged, arrived_at: arrivedAt });
+  // Same visit: status/note/damaged change, corrected plate, trailer ID, arrival or planned departure.
+  const diff = changes(v, {
+    plate, trailer_id: trailerId, status, note, damaged: +damaged, arrived_at: arrivedAt, expected_departure: expectedDeparture,
+  });
   if (!diff) return;
-  db.prepare("UPDATE visits SET plate = ?, trailer_id = ?, status = ?, note = ?, damaged = ?, arrived_at = ? WHERE id = ?")
-    .run(plate, trailerId, status, note, +damaged, arrivedAt || v.arrived_at, v.id);
+  db.prepare(`UPDATE visits SET plate = ?, trailer_id = ?, status = ?, note = ?, damaged = ?, arrived_at = ?,
+    expected_departure = ? WHERE id = ?`).run(plate, trailerId, status, note, +damaged, arrivedAt || v.arrived_at,
+    expectedDeparture === undefined ? v.expected_departure : expectedDeparture, v.id);
   log("edit", { id: v.id, plate }, { by, to: spot, details: diff });
 });
 
@@ -543,5 +595,6 @@ module.exports = {
   getLayout, saveLayout, listLayoutVersions, getLayoutVersion, spotExists, statusExists, getHistory,
   placeTrailer, moveTrailer, departTrailer, removeTrailer, correctTimes,
   getCarriers, carrierExists, saveCarrier, deleteCarrier,
+  getIncoming, saveIncoming, deleteIncoming,
   getTrailer, listTrailers, linkTrailer, unlinkTrailer, importTrailers,
 };

@@ -13,7 +13,7 @@ const place = (spot) => esc(spotName(spot));
 
 const FIELD_NAMES = {
   plate: "reg. number", trailer: "reg. number", trailer_id: "trailer ID", status: "status", note: "note",
-  arrived_at: "arrival", departed_at: "departure",
+  arrived_at: "arrival", departed_at: "departure", expected_departure: "planned departure",
 };
 
 // One history entry as a sentence, e.g. "ABC123 moved Door 201 → Parking spot 5".
@@ -38,7 +38,7 @@ function describe(e) {
   // "edit": details is { field: [old, new] }
   const changes = Object.entries(d).map(([field, [before, after]]) => {
     if (field === "damaged") return after ? "marked damaged" : "damage cleared";
-    if (field === "arrived_at" || field === "departed_at") {
+    if (field === "arrived_at" || field === "departed_at" || field === "expected_departure") {
       before = before ? formatTime(before) : "";
       after = after ? formatTime(after) : "";
     }
@@ -62,6 +62,16 @@ function visitsHtml(visits) {
     let h = `<li class="visit">`;
     if (v.trailer_id) h += `<span>Trailer ID</span><span>${esc(v.trailer_id)}</span>`;
     h += `<span>Arrived</span><span>${formatTime(v.arrived_at)}</span>`;
+    // Planned times, with how far off the actual time was.
+    const off = (planned, actual) => {
+      const m = Math.round((actual - planned) / 60000);
+      return Math.abs(m) < 1 ? "on time" : m > 0 ? `${duration(actual - planned)} late` : `${duration(planned - actual)} early`;
+    };
+    if (v.expected_arrival) h += `<span>Planned arrival</span><span>${formatTime(v.expected_arrival)} · ${off(v.expected_arrival, v.arrived_at)}</span>`;
+    if (v.expected_departure) {
+      h += `<span>Planned departure</span><span>${formatTime(v.expected_departure)}`
+        + (end ? ` · ${off(v.expected_departure, end)}` : v.expected_departure < Date.now() ? " · late" : "") + "</span>";
+    }
     if (!end) {
       return h + `<span>Now</span><span>In the yard at ${place(v.spot_id)} · ${duration(Date.now() - v.arrived_at)}</span></li>`;
     }

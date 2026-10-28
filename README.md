@@ -85,6 +85,19 @@ carrier), with "set all to skip / first line / last line" for many at once. The 
 listed under *Check* (often a typo in one of the reg. numbers). Files saved by
 Excel in UTF-8 or the older Windows encoding both work.
 
+## Planned times and Incoming
+
+- **Planned departure**: operators set it in a trailer's edit sheet. Once it has
+  passed, the trailer shows a red *late* marker on the map instead of its
+  dwell time.
+- **Incoming** (header button): trailers expected to arrive, soonest first,
+  visible to everyone. Operators add them (reg. number; trailer ID and carrier
+  are filled in from the register) and remove them. The button shows how many
+  are expected and turns red when one is late.
+- **Arrived: place on map** on an entry, then tap an open spot: the sheet opens
+  filled in. When the trailer is saved it leaves the list, and its visit keeps
+  the planned arrival time; the history shows planned vs. actual times.
+
 ## Changing the yard layout (map editor)
 
 Admins change the map on **Manage > Map**: select a section (a row of doors or
@@ -119,6 +132,7 @@ to the map) and *Street parking* (shown below the gate).
 | `public/js/map.js` | Draws the map, the Unassigned side panel, legend and search highlight |
 | `public/js/sheet.js` | The edit sheet that opens when a spot is tapped |
 | `public/js/history.js` | The history panel |
+| `public/js/incoming.js` | The Incoming panel (expected arrivals) |
 | `public/js/zoom.js` | Zoom and Fit |
 | `public/js/api.js` | Requests to the server |
 | `public/js/store.js` | The yard state shared by the modules above |

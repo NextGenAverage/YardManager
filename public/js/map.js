@@ -1,6 +1,6 @@
 // Drawing the yard: buildings and spots on the map, the side panel (Unassigned),
 // street parking below the gate, the legend and the search highlight. Clicks on spots are handled in main.js.
-import { $, esc, dwell, showMsg } from "./util.js";
+import { $, esc, dwell, showMsg, formatTime } from "./util.js";
 import { yard, ui, statusStyle, carrierBadge } from "./store.js";
 import { refit, setMapWidth } from "./zoom.js";
 import { layoutSize } from "./geometry.js";
@@ -22,8 +22,13 @@ function spotHtml(section, index, spot) {
   h += `<span class="stall">`;
   if (section.kind !== "door" && !t) h += `<span class="lbl">${esc(spot)}</span>`;
   if (t) {
+    // Past its planned departure: the dwell time turns into a red "late" marker.
+    const late = t.expectedDeparture && t.expectedDeparture < Date.now();
+    const time = late
+      ? `<span class="late" title="Planned to leave ${formatTime(t.expectedDeparture)}">late ${dwell(t.expectedDeparture)}</span>`
+      : `<span>${dwell(t.since)}</span>`;
     h += `<span class="trl${t.damaged ? " dmg" : ""}" style="${statusStyle(t.status)}">`
-      + `<b class="tr"></b><i class="dw">${carrierBadge(t.carrier)}<span>${t.damaged ? "⚠ " : ""}${dwell(t.since)}</span></i></span>`;
+      + `<b class="tr"></b><i class="dw">${carrierBadge(t.carrier)}${t.damaged ? "<span>⚠</span>" : ""}${time}</i></span>`;
   }
   return h + `</span></button>`;
 }
@@ -69,6 +74,9 @@ export function render() {
   highlightSearch(false);
   if (ui.moving && !$("q").value) {
     showMsg(`Moving ${yard.placements[ui.moving].plate}: tap an open spot to place it, or tap it again to cancel`);
+  }
+  if (ui.arriving && !$("q").value) {
+    showMsg(`${ui.arriving.plate} arrived: tap an open spot for it (Esc to cancel)`);
   }
 }
 

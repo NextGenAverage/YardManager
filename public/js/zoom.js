@@ -50,6 +50,14 @@ export function initZoom() {
   window.addEventListener("resize", () => { measureHeader(); refit(); });
   measureHeader();
 
+  // The street strip below the gate scrolls sideways together with the map.
+  const pans = [$("pan"), $("street-pan")];
+  for (const pan of pans) {
+    pan.addEventListener("scroll", () => {
+      for (const other of pans) if (other !== pan && other.scrollLeft !== pan.scrollLeft) other.scrollLeft = pan.scrollLeft;
+    });
+  }
+
   let saved = 0;
   try { saved = Number(localStorage.getItem(STORAGE_KEY)); } catch {}
   if (saved) { auto = false; setZoom(saved); }

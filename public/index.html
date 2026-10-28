@@ -28,6 +28,7 @@
     <div class="legend">
       <span class="items" id="legend-items"></span>
       <span class="zoom">
+        <button id="b-incoming">Incoming</button>
         <button id="b-histall">History</button>
         <button id="zoom-out">−</button>
         <button id="zoom-fit">Fit</button>
@@ -77,6 +78,9 @@
       <button class="chip tog" id="f-dmg" type="button">⚠ Damaged</button>
       <label class="arr" id="f-arr-wrap">Arrived <input type="datetime-local" id="f-arr"></label>
     </div>
+    <div class="row sheet-row" id="f-exp-wrap">
+      <label class="arr">Planned departure <input type="datetime-local" id="f-exp"></label>
+    </div>
     <div class="row sheet-row" id="occ-row">
       <button class="btn" id="b-move">Move</button>
       <button class="btn" id="b-depart">Departed</button>
@@ -86,6 +90,32 @@
       <button class="btn" id="b-cancel">Cancel</button>
       <button class="btn" id="b-hist">History</button>
       <button class="btn pri" id="b-save">Save</button>
+    </div>
+  </div>
+
+  <!-- Incoming: trailers expected to arrive (incoming.js) -->
+  <div id="incoming" class="drawer">
+    <div class="panel">
+      <div class="hbar">
+        <h3>Incoming</h3>
+        <button class="btn" id="in-close">Close</button>
+      </div>
+      <form class="in-add" id="in-add" hidden>
+        <div class="row">
+          <input name="plate" placeholder="Reg. number" required maxlength="20" autocapitalize="characters">
+          <input name="when" type="datetime-local" required aria-label="Expected arrival">
+        </div>
+        <div class="row">
+          <input name="trailerId" placeholder="Trailer ID" maxlength="60">
+          <select name="carrier" aria-label="Carrier"></select>
+        </div>
+        <div class="row">
+          <input name="note" placeholder="Note (optional)" maxlength="200">
+          <button class="btn pri">Add</button>
+        </div>
+      </form>
+      <p class="error" id="in-error"></p>
+      <ul class="in-list" id="in-list"></ul>
     </div>
   </div>
 
