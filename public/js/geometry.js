@@ -9,6 +9,10 @@ export function sectionBox(s) {
   return { right: s.x + s.cols * s.cw + 6, bottom: s.y + (s.title ? 18 : 0) + rows * rowHeight + 6 };
 }
 
+// Empty space kept to the right of the rightmost doors, so they don't end at the
+// edge of the map.
+const RIGHT_MARGIN = 100;
+
 // How big the map and the street strip must be to hold everything.
 // Unassigned ("pool") sections are shown elsewhere and don't count.
 export function layoutSize(sections, buildings) {
@@ -29,7 +33,7 @@ export function layoutSize(sections, buildings) {
     bottom = Math.max(bottom, b.y + b.h);
   }
   return {
-    width: Math.max(800, right + 20, streetRight + 20),
+    width: Math.max(800, right + RIGHT_MARGIN, streetRight + 20),
     height: Math.max(600, bottom + 20),
     streetHeight: streetBottom ? streetBottom + 10 : 0,
   };
