@@ -47,6 +47,27 @@ const migrations = [
   CREATE UNIQUE INDEX visits_active_spot ON visits(spot_id) WHERE departed_at IS NULL;
   CREATE UNIQUE INDEX visits_active_trailer ON visits(trailer) WHERE departed_at IS NULL;
   `,
+  `
+  ALTER TABLE visits ADD COLUMN damaged INTEGER NOT NULL DEFAULT 0;
+  CREATE INDEX visits_trailer ON visits(trailer);
+  -- History: one row per change. Spot and trailer are copied in as text so
+  -- the history still reads correctly after visits or spots are removed.
+  CREATE TABLE events (
+    id        INTEGER PRIMARY KEY,
+    at        INTEGER NOT NULL,
+    user_name TEXT,
+    action    TEXT NOT NULL,      -- arrive | move | edit | depart | remove
+    visit_id  INTEGER,
+    trailer   TEXT NOT NULL,
+    from_spot TEXT,
+    to_spot   TEXT,
+    details   TEXT                -- JSON, e.g. {"status":["Loading","Loaded"]}
+  );
+  CREATE INDEX events_at ON events(at);
+  CREATE INDEX events_trailer ON events(trailer);
+  CREATE INDEX events_from ON events(from_spot);
+  CREATE INDEX events_to ON events(to_spot);
+  `,
 ];
 
 function migrate() {
@@ -102,11 +123,11 @@ function getSections() {
   }));
 }
 
-// Current yard: { spotId: { trailer, status, note, since } }
+// Current yard: { spotId: { trailer, status, note, damaged, since } }
 function getPlacements() {
   const out = {};
   for (const v of db.prepare("SELECT * FROM visits WHERE departed_at IS NULL").all()) {
-    out[v.spot_id] = { trailer: v.trailer, status: v.status, note: v.note, since: v.arrived_at };
+    out[v.spot_id] = { trailer: v.trailer, status: v.status, note: v.note, damaged: !!v.damaged, since: v.arrived_at };
   }
   return out;
 }
@@ -121,47 +142,110 @@ function statusExists(name) {
 
 const activeAt = db.prepare("SELECT * FROM visits WHERE departed_at IS NULL AND spot_id = ?");
 const activeTrailer = db.prepare("SELECT * FROM visits WHERE departed_at IS NULL AND trailer = ?");
-const departStmt = db.prepare("UPDATE visits SET departed_at = ? WHERE id = ?");
+const setSpot = db.prepare("UPDATE visits SET spot_id = ? WHERE id = ?");
+const setDeparted = db.prepare("UPDATE visits SET departed_at = ? WHERE id = ?");
+const insertEvent = db.prepare(`INSERT INTO events (at, user_name, action, visit_id, trailer, from_spot, to_spot, details)
+  VALUES (@at, @by, @action, @visit_id, @trailer, @from, @to, @details)`);
+
+function log(action, v, { by, from = null, to = null, details = null }) {
+  insertEvent.run({ at: Date.now(), by: by || null, action, visit_id: v.id, trailer: v.trailer,
+    from, to, details: details && JSON.stringify(details) });
+}
+
+// Compare a visit with new values; returns { field: [old, new] } or null if nothing changed.
+function changes(v, next) {
+  const out = {};
+  for (const k of Object.keys(next)) if (next[k] !== undefined && next[k] !== v[k]) out[k] = [v[k], next[k]];
+  return Object.keys(out).length ? out : null;
+}
 
 // Thrown for requests that can't be done (e.g. the spot was just taken);
 // the server turns it into an error message for the user.
 class YardError extends Error {}
+const GONE = "That trailer has already been moved or removed.";
 
 // Save the trailer on a spot (new trailer, or edit of the one already there).
 // If that trailer number is already elsewhere in the yard it is moved here,
-// keeping its arrival time, like the prototype did.
-const placeTrailer = db.transaction(({ spot, trailer, status, note }) => {
-  const now = Date.now();
+// keeping its arrival time, and any other trailer on this spot departs.
+const placeTrailer = db.transaction(({ spot, trailer, status, note, damaged, arrivedAt, by }) => {
   const here = activeAt.get(spot);
-  const elsewhere = activeTrailer.get(trailer);
-  if (elsewhere && (!here || elsewhere.id !== here.id)) {
-    if (here) departStmt.run(now, here.id);
-    db.prepare("UPDATE visits SET spot_id = ?, status = ?, note = ? WHERE id = ?")
-      .run(spot, status, note, elsewhere.id);
-  } else if (here) {
-    // Same visit: a status/note change or a corrected trailer number.
-    db.prepare("UPDATE visits SET trailer = ?, status = ?, note = ? WHERE id = ?")
-      .run(trailer, status, note, here.id);
-  } else {
-    db.prepare("INSERT INTO visits (trailer, status, note, spot_id, arrived_at) VALUES (?, ?, ?, ?, ?)")
-      .run(trailer, status, note, spot, now);
+  let v = activeTrailer.get(trailer);
+  if (v && here && v.id !== here.id) departVisit(here, by);
+  if (v && v.spot_id !== spot) {
+    setSpot.run(spot, v.id);
+    log("move", v, { by, from: v.spot_id, to: spot });
   }
+  v = v || here;
+  if (!v) {
+    const { lastInsertRowid } = db.prepare(`INSERT INTO visits (trailer, status, note, damaged, spot_id, arrived_at)
+      VALUES (?, ?, ?, ?, ?, ?)`).run(trailer, status, note, +damaged, spot, arrivedAt || Date.now());
+    log("arrive", { id: lastInsertRowid, trailer }, { by, to: spot, details: { status, note, damaged } });
+    return;
+  }
+  // Same visit: status/note/damaged change, corrected number or arrival time.
+  const diff = changes(v, { trailer, status, note, damaged: +damaged, arrived_at: arrivedAt });
+  if (!diff) return;
+  db.prepare("UPDATE visits SET trailer = ?, status = ?, note = ?, damaged = ?, arrived_at = ? WHERE id = ?")
+    .run(trailer, status, note, +damaged, arrivedAt || v.arrived_at, v.id);
+  log("edit", { id: v.id, trailer }, { by, to: spot, details: diff });
 });
 
-const moveTrailer = db.transaction(({ from, to }) => {
+const moveTrailer = db.transaction(({ from, to, by }) => {
   const v = activeAt.get(from);
-  if (!v) throw new YardError("That trailer has already been moved or removed.");
+  if (!v) throw new YardError(GONE);
   if (activeAt.get(to)) throw new YardError("That spot was just taken.");
-  db.prepare("UPDATE visits SET spot_id = ? WHERE id = ?").run(to, v.id);
+  setSpot.run(to, v.id);
+  log("move", v, { by, from, to });
 });
 
-const clearSpot = db.transaction((spot) => {
+function departVisit(v, by) {
+  setDeparted.run(Date.now(), v.id);
+  log("depart", v, { by, from: v.spot_id });
+}
+
+const departTrailer = db.transaction(({ spot, by }) => {
   const v = activeAt.get(spot);
-  if (v) departStmt.run(Date.now(), v.id);
+  if (!v) throw new YardError(GONE);
+  departVisit(v, by);
 });
+
+// For trailers entered by mistake: the visit is deleted, the history keeps a note of it.
+const removeTrailer = db.transaction(({ spot, by }) => {
+  const v = activeAt.get(spot);
+  if (!v) throw new YardError(GONE);
+  db.prepare("DELETE FROM visits WHERE id = ?").run(v.id);
+  log("remove", v, { by, from: spot, details: { status: v.status, note: v.note, arrived_at: v.arrived_at } });
+});
+
+// Correct the arrival/departure time of a visit (e.g. one that has already left).
+const correctTimes = db.transaction(({ id, arrivedAt, departedAt, by }) => {
+  const v = db.prepare("SELECT * FROM visits WHERE id = ?").get(id);
+  if (!v) throw new YardError("That visit no longer exists.");
+  if (departedAt !== undefined && v.departed_at === null) throw new YardError("This trailer hasn't departed yet.");
+  const arr = arrivedAt ?? v.arrived_at, dep = departedAt ?? v.departed_at;
+  if (dep !== null && dep < arr) throw new YardError("Departure can't be before arrival.");
+  const diff = changes(v, { arrived_at: arrivedAt, departed_at: departedAt });
+  if (!diff) return;
+  db.prepare("UPDATE visits SET arrived_at = ?, departed_at = ? WHERE id = ?").run(arr, dep, id);
+  log("edit", v, { by, from: v.spot_id, details: diff });
+});
+
+// History for one trailer (its visits and events), one spot, or the whole yard.
+function getHistory({ trailer, spot, limit = 200 }) {
+  const ev = (where, ...args) => db.prepare(`SELECT * FROM events ${where} ORDER BY at DESC, id DESC LIMIT ${limit}`)
+    .all(...args).map((e) => ({ ...e, details: e.details && JSON.parse(e.details) }));
+  if (trailer) {
+    return {
+      visits: db.prepare("SELECT * FROM visits WHERE trailer = ? ORDER BY arrived_at DESC LIMIT 50").all(trailer),
+      events: ev("WHERE trailer = ?", trailer),
+    };
+  }
+  if (spot) return { events: ev("WHERE from_spot = ? OR to_spot = ?", spot, spot) };
+  return { events: ev("") };
+}
 
 module.exports = {
   db, YardError,
-  getStatuses, getSections, getPlacements, spotExists, statusExists,
-  placeTrailer, moveTrailer, clearSpot,
+  getStatuses, getSections, getPlacements, spotExists, statusExists, getHistory,
+  placeTrailer, moveTrailer, departTrailer, removeTrailer, correctTimes,
 };

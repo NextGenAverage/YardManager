@@ -22,6 +22,13 @@ const clean = (v, max) => String(v ?? "").trim().slice(0, max);
 function checkSpot(spot) {
   return yard.spotExists(spot) ? null : "Unknown spot.";
 }
+// Times arrive as milliseconds; missing means "don't change".
+const time = (v) => (v === undefined || v === null || v === "" ? undefined : Number(v));
+function checkTime(t) {
+  if (t === undefined) return null;
+  const now = Date.now();
+  return Number.isFinite(t) && t > now - 400 * 864e5 && t < now + 10 * 60e3 ? null : "That time isn't valid (it can't be in the future).";
+}
 
 // Live updates (Server-Sent Events): every open map keeps /api/events open
 // and gets the whole yard state again each time something changes.
@@ -49,16 +56,21 @@ function changed(res) {
 
 app.get("/api/yard", (req, res) => res.json(state()));
 
+// The logged-in user's name, recorded in the history. Logins come in a later step.
+const who = (req) => null;
+
 app.post("/api/place", (req, res) => {
   const spot = clean(req.body.spot, 20);
   const trailer = clean(req.body.trailer, 20).toUpperCase();
   const status = clean(req.body.status, 40);
   const note = clean(req.body.note, 200);
+  const arrivedAt = time(req.body.arrivedAt);
   const err = checkSpot(spot)
     || (!trailer && "Trailer number is required.")
-    || (!yard.statusExists(status) && "Unknown status.");
+    || (!yard.statusExists(status) && "Unknown status.")
+    || checkTime(arrivedAt);
   if (err) return res.status(400).json({ error: err });
-  yard.placeTrailer({ spot, trailer, status, note });
+  yard.placeTrailer({ spot, trailer, status, note, damaged: !!req.body.damaged, arrivedAt, by: who(req) });
   changed(res);
 });
 
@@ -67,16 +79,44 @@ app.post("/api/move", (req, res) => {
   const to = clean(req.body.to, 20);
   const err = checkSpot(from) || checkSpot(to);
   if (err) return res.status(400).json({ error: err });
-  yard.moveTrailer({ from, to });
+  yard.moveTrailer({ from, to, by: who(req) });
   changed(res);
 });
 
-app.post("/api/clear", (req, res) => {
+// The trailer has left the yard.
+app.post("/api/depart", (req, res) => {
   const spot = clean(req.body.spot, 20);
   const err = checkSpot(spot);
   if (err) return res.status(400).json({ error: err });
-  yard.clearSpot(spot);
+  yard.departTrailer({ spot, by: who(req) });
   changed(res);
+});
+
+// The trailer was entered by mistake.
+app.post("/api/remove", (req, res) => {
+  const spot = clean(req.body.spot, 20);
+  const err = checkSpot(spot);
+  if (err) return res.status(400).json({ error: err });
+  yard.removeTrailer({ spot, by: who(req) });
+  changed(res);
+});
+
+app.post("/api/visit-times", (req, res) => {
+  const id = Number(req.body.id);
+  const arrivedAt = time(req.body.arrivedAt);
+  const departedAt = time(req.body.departedAt);
+  const err = (!Number.isInteger(id) && "Unknown visit.") || checkTime(arrivedAt) || checkTime(departedAt);
+  if (err) return res.status(400).json({ error: err });
+  yard.correctTimes({ id, arrivedAt, departedAt, by: who(req) });
+  changed(res);
+});
+
+// ?trailer=ABC123, ?spot=201, or nothing for the latest changes in the whole yard.
+app.get("/api/history", (req, res) => {
+  res.json(yard.getHistory({
+    trailer: clean(req.query.trailer, 20).toUpperCase() || undefined,
+    spot: clean(req.query.spot, 20) || undefined,
+  }));
 });
 
 // YardError = a normal "can't do that right now" (409); anything else is a bug.

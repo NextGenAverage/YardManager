@@ -57,6 +57,7 @@ h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#f4d34a;ma
 background:repeating-linear-gradient(180deg,rgba(0,0,0,.1) 0 2px,transparent 2px 9px),linear-gradient(90deg,color-mix(in srgb,var(--c) 78%,#fff),var(--c) 45%,color-mix(in srgb,var(--c) 80%,#000));
 box-shadow:0 4px 8px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.35);transition:transform .12s}
 .trl .tr{writing-mode:vertical-rl;transform:rotate(180deg);font-size:12px;line-height:1;font-weight:700;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5);flex:1;display:flex;align-items:center}
+.trl.dmg{outline:3px solid #e5392f;outline-offset:1px}
 .trl .dw{font-size:9px;opacity:.9;font-style:normal}
 .bay.lift .trl{transform:translateY(-6px) scale(1.1);z-index:3;overflow:visible;box-shadow:0 12px 16px rgba(0,0,0,.6),0 0 0 3px #fff}
 .bay.hit .trl{box-shadow:0 0 0 4px #ffd54a,0 0 16px 6px rgba(255,213,74,.6)}
@@ -75,6 +76,25 @@ box-shadow:0 4px 8px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.35);trans
 .row{display:flex;gap:8px}
 .btn{flex:1;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-weight:600;cursor:pointer}
 .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.warn{color:#d64545}
+.sheet-row{margin-bottom:8px}
+.chip.tog.sel{--c:#e5392f}
+.arr{flex:1;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mute)}
+#sheet .arr input{margin:0;padding:8px;font-size:14px;flex:1;min-width:0}
+.link{border:0;background:none;color:var(--accent);font:inherit;padding:0;cursor:pointer;text-decoration:underline}
+#hist{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.35);display:none}
+#hist.open{display:block}
+#hist .panel{position:absolute;top:0;bottom:0;right:0;width:100%;max-width:560px;background:var(--card);overflow:auto;padding:12px 14px calc(16px + env(safe-area-inset-bottom,0px));box-shadow:-8px 0 30px rgba(0,0,0,.25)}
+.hbar{display:flex;align-items:center;gap:8px;position:sticky;top:-12px;background:var(--card);padding:12px 0 8px;margin-top:-12px;border-bottom:1px solid var(--line)}
+.hbar h3{flex:1;margin:0;font-size:16px}
+.hbar .btn{flex:0 0 auto;padding:7px 14px}
+#hist h4{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:14px 0 6px}
+#hist ul{list-style:none;margin:0;padding:0}
+#hist li{padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+#hist li time,#hist li small{display:block;font-size:12px;color:var(--mute)}
+.visit{display:grid;grid-template-columns:auto 1fr;gap:2px 10px}
+.visit form{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.visit form input{flex:1;min-width:170px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;font-size:14px}
 </style>
 </head>
 <body>
@@ -84,7 +104,7 @@ box-shadow:0 4px 8px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.35);trans
 <div id="msg"></div>
 <div class="legend">
 <span class="items" id="legend-items"></span>
-<span class="zoom"><button id="zo">−</button><button id="zf">Fit</button><button id="zi">+</button></span>
+<span class="zoom"><button id="b-histall">History</button><button id="zo">−</button><button id="zf">Fit</button><button id="zi">+</button></span>
 </div>
 </header>
 <main>
@@ -101,12 +121,24 @@ box-shadow:0 4px 8px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.35);trans
 <input id="f-tr" placeholder="Trailer number" autocapitalize="characters" autocomplete="off">
 <div class="chips" id="chips"></div>
 <input id="f-note" placeholder="Note (optional)" autocomplete="off">
+<div class="row sheet-row">
+<button class="chip tog" id="f-dmg" type="button">⚠ Damaged</button>
+<label class="arr" id="f-arr-wrap">Arrived <input type="datetime-local" id="f-arr"></label>
+</div>
+<div class="row sheet-row" id="occ-row">
+<button class="btn" id="b-depart">Departed</button>
+<button class="btn warn" id="b-remove">Remove (mistake)</button>
+</div>
 <div class="row">
 <button class="btn" id="b-cancel">Cancel</button>
-<button class="btn" id="b-clear">Clear spot</button>
+<button class="btn" id="b-hist">History</button>
 <button class="btn pri" id="b-save">Save</button>
 </div>
 </div>
+<div id="hist"><div class="panel">
+<div class="hbar"><h3 id="h-title">History</h3><button class="btn" id="h-close">Close</button></div>
+<div id="h-body"></div>
+</div></div>
 <script>
 // Layout, statuses and trailers come from the server (/api/yard).
 var SECTIONS=[],STATUS={},data={},cur=null,curStatus="",def="",sel=null,busy=false;
@@ -148,7 +180,7 @@ function render(){
       if(s.kind==="door")html+='<span class="door"><span class="dr">'+esc(id)+'</span></span>';
       html+='<span class="stall">';
       if(s.kind!=="door"&&!d)html+='<span class="lbl">'+esc(id)+'</span>';
-      if(d)html+='<span class="trl" style="'+colors(d.status)+'"><b class="tr"></b><i class="dw">'+dwell(d.since)+'</i></span>';
+      if(d)html+='<span class="trl'+(d.damaged?" dmg":"")+'" style="'+colors(d.status)+'"><b class="tr"></b><i class="dw">'+(d.damaged?"⚠ ":"")+dwell(d.since)+'</i></span>';
       html+='</span></button>';
     });
     html+='</div></div>';
@@ -179,25 +211,113 @@ function tap(id,si){
 function chips(){
   var h="";Object.keys(STATUS).forEach(function(k){h+='<button class="chip'+(k===curStatus?" sel":"")+'" style="'+colors(k)+'" data-k="'+esc(k)+'">'+esc(k)+'</button>'});
   $("chips").innerHTML=h;
-  var c=document.querySelectorAll(".chip");
+  var c=document.querySelectorAll("#chips .chip");
   for(var i=0;i<c.length;i++)c[i].onclick=function(){curStatus=this.dataset.k;chips()};
 }
+function sectionOf(id){for(var i=0;i<SECTIONS.length;i++)if(SECTIONS[i].spots.indexOf(id)>-1)return SECTIONS[i]}
+function spotName(id){var s=sectionOf(id);return s?s.noun+(/^[PU]\d+$/.test(id)?id.slice(1):id):"spot "+id}
+// <input type="datetime-local"> works in local time without seconds.
+function toLocal(ms){var d=new Date(ms-new Date(ms).getTimezoneOffset()*60000);return d.toISOString().slice(0,16)}
+function fromLocal(v){return v?new Date(v).getTime():undefined}
+var curDmg=false,arrOrig="";
+function dmgBtn(){$("f-dmg").classList.toggle("sel",curDmg)}
+$("f-dmg").onclick=function(){curDmg=!curDmg;dmgBtn()};
 function openSheet(id,si){
   cur=id;def=SECTIONS[si].defaultStatus;var d=data[id];
-  $("sh-title").textContent=SECTIONS[si].noun+(/^[PU]\d+$/.test(id)?id.slice(1):id);
+  $("sh-title").textContent=spotName(id);
   $("f-tr").value=d?d.trailer:"";$("f-note").value=d&&d.note?d.note:"";
-  curStatus=d?d.status:def;chips();$("b-clear").style.display=d?"":"none";
+  curStatus=d?d.status:def;chips();
+  curDmg=!!(d&&d.damaged);dmgBtn();
+  arrOrig=d?toLocal(d.since):"";$("f-arr").value=arrOrig;
+  $("f-arr-wrap").style.display=d?"":"none";$("occ-row").style.display=d?"":"none";
   $("sheet").classList.add("open");
   if(!d)setTimeout(function(){$("f-tr").focus()},220);
 }
 function closeSheet(){$("sheet").classList.remove("open");cur=null;document.activeElement&&document.activeElement.blur()}
 $("b-cancel").onclick=closeSheet;
-$("b-clear").onclick=function(){api("/api/clear",{spot:cur}).then(closeSheet,function(){})};
+$("b-depart").onclick=function(){
+  if(!confirm(data[cur].trailer+" has left the yard?"))return;
+  api("/api/depart",{spot:cur}).then(closeSheet,function(){});
+};
+$("b-remove").onclick=function(){
+  if(!confirm("Remove "+data[cur].trailer+"?\n\nOnly use this if it was entered by mistake. If the trailer has left, use Departed instead."))return;
+  api("/api/remove",{spot:cur}).then(closeSheet,function(){});
+};
 $("b-save").onclick=function(){
   var t=$("f-tr").value.trim().toUpperCase();
   if(!t){$("f-tr").focus();return}
-  api("/api/place",{spot:cur,trailer:t,status:curStatus,note:$("f-note").value.trim()}).then(closeSheet,function(){});
+  var arr=$("f-arr").value;
+  api("/api/place",{spot:cur,trailer:t,status:curStatus,note:$("f-note").value.trim(),damaged:curDmg,
+    arrivedAt:arr!==arrOrig?fromLocal(arr):undefined}).then(closeSheet,function(){});
 };
+$("b-hist").onclick=function(){var d=data[cur];openHist(d?{trailer:d.trailer,spot:cur}:{spot:cur})};
+
+// ---- History panel ----
+function fmt(ms){return new Date(ms).toLocaleString([],{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}
+function dur(ms){var m=Math.round(ms/60000);if(m<60)return m+"m";var h=Math.floor(m/60);return h<48?h+"h "+m%60+"m":Math.floor(h/24)+"d "+h%24+"h"}
+function trLink(t){return'<button class="link" data-tr="'+esc(t)+'">'+esc(t)+'</button>'}
+var FIELDS={trailer:"trailer number",status:"status",note:"note",arrived_at:"arrival",departed_at:"departure"};
+function describe(e){
+  var t=trLink(e.trailer),d=e.details||{};
+  if(e.action==="arrive")return t+" arrived at "+esc(spotName(e.to_spot))+(d.status?" ("+esc(d.status)+")":"");
+  if(e.action==="move")return t+" moved "+esc(spotName(e.from_spot))+" → "+esc(spotName(e.to_spot));
+  if(e.action==="depart")return t+" departed from "+esc(spotName(e.from_spot));
+  if(e.action==="remove")return t+" removed from "+esc(spotName(e.from_spot))+" (entered by mistake)";
+  var parts=Object.keys(d).map(function(k){
+    var a=d[k][0],b=d[k][1];
+    if(k==="damaged")return b?"marked damaged":"damage cleared";
+    if(k==="arrived_at"||k==="departed_at"){a=a?fmt(a):"–";b=b?fmt(b):"–"}
+    return(FIELDS[k]||k)+" “"+esc(a===""?"–":a)+"” → “"+esc(b===""?"–":b)+"”";
+  });
+  return t+" at "+esc(spotName(e.to_spot||e.from_spot))+": "+parts.join(", ");
+}
+function eventList(events){
+  if(!events.length)return'<p>No changes recorded yet.</p>';
+  return"<ul>"+events.map(function(e){
+    return"<li><time>"+fmt(e.at)+"</time>"+describe(e)+(e.user_name?"<small>by "+esc(e.user_name)+"</small>":"")+"</li>";
+  }).join("")+"</ul>";
+}
+function visitList(visits){
+  return"<ul>"+visits.map(function(v){
+    var end=v.departed_at,h='<li class="visit"><span>Arrived</span><span>'+fmt(v.arrived_at)+'</span>';
+    h+=end?'<span>Departed</span><span>'+fmt(end)+' from '+esc(spotName(v.spot_id))+' · stayed '+dur(end-v.arrived_at)+' <button class="link" data-fix="'+v.id+'">Fix times</button></span>'
+      :'<span>Now</span><span>In the yard at '+esc(spotName(v.spot_id))+' · '+dur(Date.now()-v.arrived_at)+'</span>';
+    if(end)h+='<form data-visit="'+v.id+'" hidden><input type="datetime-local" name="a" value="'+toLocal(v.arrived_at)+'" aria-label="Arrived"><input type="datetime-local" name="d" value="'+toLocal(end)+'" aria-label="Departed"><button class="btn pri">Save times</button></form>';
+    return h+"</li>";
+  }).join("")+"</ul>";
+}
+var histQ=null;
+function openHist(q){
+  histQ=q;
+  $("h-title").textContent=q.trailer?"Trailer "+q.trailer:q.spot?spotName(q.spot):"Recent changes";
+  $("h-body").innerHTML="<p>Loading…</p>";$("hist").classList.add("open");
+  var qs=q.trailer?"?trailer="+encodeURIComponent(q.trailer):q.spot?"?spot="+encodeURIComponent(q.spot):"";
+  fetch("/api/history"+qs).then(function(r){return r.json()}).then(function(h){
+    if(histQ!==q)return;
+    var html="";
+    if(q.trailer){
+      html+="<h4>Visits</h4>"+(h.visits.length?visitList(h.visits):"<p>No visits found for this trailer number.</p>");
+      if(q.spot)html+='<p><button class="link" data-spot="'+esc(q.spot)+'">Show history for '+esc(spotName(q.spot))+'</button></p>';
+    }
+    $("h-body").innerHTML=html+"<h4>Changes</h4>"+eventList(h.events);
+  },function(){$("h-body").innerHTML="<p>Can't reach the server.</p>"});
+}
+$("b-histall").onclick=function(){openHist({})};
+$("h-close").onclick=function(){$("hist").classList.remove("open");histQ=null};
+$("hist").onclick=function(e){if(e.target===this)$("h-close").onclick()};
+$("h-body").onclick=function(e){
+  var b=e.target.closest("button");if(!b)return;
+  if(b.dataset.tr)openHist({trailer:b.dataset.tr});
+  else if(b.dataset.spot)openHist({spot:b.dataset.spot});
+  else if(b.dataset.fix){var f=$("h-body").querySelector('form[data-visit="'+b.dataset.fix+'"]');f.hidden=!f.hidden}
+};
+$("h-body").onsubmit=function(e){
+  e.preventDefault();var f=e.target;
+  api("/api/visit-times",{id:+f.dataset.visit,arrivedAt:fromLocal(f.a.value),departedAt:fromLocal(f.d.value)})
+    .then(function(){openHist(histQ)},function(){});
+};
+// Search found nothing on the map: offer that trailer's past visits.
+$("msg").onclick=function(e){var b=e.target.closest("button");if(b&&b.dataset.tr)openHist({trailer:b.dataset.tr})};
 function find(scroll){
   var q=$("q").value.trim().toUpperCase(),msg=$("msg");
   var btns=document.querySelectorAll(".bay"),first=null,n=0;
@@ -207,7 +327,7 @@ function find(scroll){
     if(hit){n++;if(!first)first=btns[i]}
   }
   if(!q)msg.textContent="";
-  else if(!n)msg.textContent="No match for “"+q+"”";
+  else if(!n)msg.innerHTML="No match for “"+esc(q)+"” on the map. "+'<button class="link" data-tr="'+esc(q)+'">Past visits</button>';
   else{msg.textContent=n+" found";if(scroll)first.scrollIntoView({block:"center",inline:"center",behavior:"smooth"})}
 }
 var z=1;
