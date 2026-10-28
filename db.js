@@ -68,6 +68,11 @@ const migrations = [
   CREATE INDEX events_from ON events(from_spot);
   CREATE INDEX events_to ON events(to_spot);
   `,
+  `
+  -- Taller parking and unassigned spots so trailer numbers are readable.
+  UPDATE sections SET geometry = json_set(geometry, '$.sh', 110) WHERE kind = 'park' AND json_extract(geometry, '$.sh') = 80;
+  UPDATE sections SET geometry = json_set(geometry, '$.sh', 96) WHERE kind = 'pool' AND json_extract(geometry, '$.sh') = 64;
+  `,
 ];
 
 function migrate() {

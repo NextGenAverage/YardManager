@@ -16,7 +16,7 @@ module.exports = [
   { ...door, spots: range(101, 110), o: "s", x: 930, y: 710, cols: 10, cw: 40 },
   { ...door, spots: ["R01"], o: "s", x: 1330, y: 710, cols: 1, cw: 56 },
   { title: "Trailer parking", spots: range(1, 24, "P"), kind: "park", defaultStatus: "Loaded",
-    noun: "Parking spot ", o: "s", x: 190, y: 1010, cols: 12, cw: 40, sh: 80 },
+    noun: "Parking spot ", o: "s", x: 190, y: 1010, cols: 12, cw: 40, sh: 110 },
   { title: "Unassigned trailers", spots: range(1, 27, "U"), kind: "pool", defaultStatus: "Undefined",
-    noun: "Unassigned slot ", o: "s", x: 760, y: 1010, cols: 9, cw: 48, sh: 64 },
+    noun: "Unassigned slot ", o: "s", x: 760, y: 1010, cols: 9, cw: 48, sh: 96 },
 ];

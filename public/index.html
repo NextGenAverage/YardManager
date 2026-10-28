@@ -39,8 +39,8 @@ main{padding:10px;max-width:2200px;margin:0 auto}
 .ow .door,.oe .door{display:flex;width:24px;padding:4px 0}
 .ow .dr,.oe .dr{flex:1;height:auto;line-height:1;display:flex;align-items:center;justify-content:center;writing-mode:vertical-rl;font-size:11px;border-radius:3px}
 .ow .stall,.oe .stall{width:var(--sh);height:var(--th);border-right:0;border-bottom:3px solid var(--paint)}
-.ow .trl,.oe .trl{flex-direction:row;padding:0 5px}
-.ow .trl .tr,.oe .trl .tr{writing-mode:horizontal-tb;transform:none}
+.ow .trl,.oe .trl{justify-content:center;padding:0 5px}
+.ow .trl .tr,.oe .trl .tr{writing-mode:horizontal-tb;transform:none;flex:none;align-self:stretch;justify-content:center}
 .sec{position:absolute}
 h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#f4d34a;margin:0 0 4px 2px;white-space:nowrap}
 .grid{display:grid;grid-template-columns:repeat(var(--cols),var(--cw));border-left:3px solid var(--paint)}
@@ -53,12 +53,12 @@ h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#f4d34a;ma
 .pkg .stall{border-right-color:#f4d34a;border-top:3px solid #f4d34a}
 .bay:not(.on) .stall:after{content:"open";position:absolute;left:0;right:0;bottom:5px;font-size:10px;color:rgba(255,255,255,.28)}
 .lbl{position:absolute;left:0;right:0;top:4px;font-size:10px;color:rgba(255,255,255,.45)}
-.trl{position:absolute;inset:4px 5px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:4px 0;color:var(--fg,#fff);overflow:hidden;
+.trl{position:absolute;inset:3px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:4px 0;color:var(--fg,#fff);overflow:hidden;
 background:repeating-linear-gradient(180deg,rgba(0,0,0,.1) 0 2px,transparent 2px 9px),linear-gradient(90deg,color-mix(in srgb,var(--c) 78%,#fff),var(--c) 45%,color-mix(in srgb,var(--c) 80%,#000));
 box-shadow:0 4px 8px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.35);transition:transform .12s}
-.trl .tr{writing-mode:vertical-rl;transform:rotate(180deg);font-size:12px;line-height:1;font-weight:700;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5);flex:1;display:flex;align-items:center}
+.trl .tr{writing-mode:vertical-rl;transform:rotate(180deg);font-size:15px;line-height:1;font-weight:800;letter-spacing:.02em;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5);flex:1;min-height:0;min-width:0;overflow:hidden;display:flex;align-items:center}
 .trl.dmg{outline:3px solid #e5392f;outline-offset:1px}
-.trl .dw{font-size:9px;opacity:.9;font-style:normal}
+.trl .dw{font-size:10px;font-weight:600;opacity:.9;font-style:normal;white-space:nowrap}
 .bay.lift .trl{transform:translateY(-6px) scale(1.1);z-index:3;overflow:visible;box-shadow:0 12px 16px rgba(0,0,0,.6),0 0 0 3px #fff}
 .bay.hit .trl{box-shadow:0 0 0 4px #ffd54a,0 0 16px 6px rgba(255,213,74,.6)}
 .gate{position:relative;margin-top:6px;padding:26px 10px 12px;border-top:5px solid #555b66;background:linear-gradient(#2d3036,#3a3e45)}
@@ -126,8 +126,9 @@ box-shadow:0 4px 8px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.35);trans
 <label class="arr" id="f-arr-wrap">Arrived <input type="datetime-local" id="f-arr"></label>
 </div>
 <div class="row sheet-row" id="occ-row">
+<button class="btn" id="b-move">Move</button>
 <button class="btn" id="b-depart">Departed</button>
-<button class="btn warn" id="b-remove">Remove (mistake)</button>
+<button class="btn warn" id="b-remove">Remove</button>
 </div>
 <div class="row">
 <button class="btn" id="b-cancel">Cancel</button>
@@ -186,6 +187,7 @@ function render(){
     html+='</div></div>';
   });
   $("map").innerHTML=html;
+  sizeScene();
   var btns=document.querySelectorAll(".bay");
   for(var i=0;i<btns.length;i++){
     var b=btns[i],d=data[b.dataset.id];
@@ -193,19 +195,40 @@ function render(){
     if(b.dataset.id===sel)b.classList.add("lift");
     b.onclick=function(){tap(this.dataset.id,+this.dataset.s)};
   }
+  fitNumbers();
   $("count").textContent=used+" of "+total+" spots in use";
   find(false);
-  if(sel&&data[sel]&&!$("q").value)$("msg").textContent="Moving "+data[sel].trailer+": tap an open spot to place it, or tap it again to edit";
+  if(sel&&data[sel]&&!$("q").value)$("msg").textContent="Moving "+data[sel].trailer+": tap an open spot to place it, or tap it again to cancel";
 }
+// Trailer numbers start large and shrink only as much as needed to fit their spot.
+// The map is as tall as its lowest section (title + rows of spots + door strip).
+var sceneH=1240;
+function sizeScene(){
+  var h=0;
+  SECTIONS.forEach(function(s){
+    var rows=Math.ceil(s.spots.length/s.cols),side=s.o==="e"||s.o==="w";
+    h=Math.max(h,s.y+(s.title?18:0)+rows*(side?(s.th||40):s.sh+(s.kind==="door"?28:0))+6);
+  });
+  var nh=Math.max(600,h+20);
+  if(nh!==sceneH){sceneH=nh;$("scene").style.height=sceneH+"px";if(auto)fit()}
+}
+function fitNumbers(){
+  var trs=document.querySelectorAll(".trl .tr");
+  for(var i=0;i<trs.length;i++){
+    var el=trs[i],f=15;el.style.fontSize=f+"px";
+    while(f>9&&(el.scrollHeight>el.clientHeight+1||el.scrollWidth>el.clientWidth+1))el.style.fontSize=--f+"px";
+  }
+}
+// Tapping a spot opens its edit sheet. After "Move" in the sheet the trailer is
+// lifted (sel) and the next tap on an open spot moves it there.
 function tap(id,si){
   if(busy)return;
   var d=data[id];
-  if(sel&&sel!==id){
+  if(sel){
+    if(id===sel){sel=null;render();return}
     if(!d){var from=sel;sel=null;api("/api/move",{from:from,to:id}).catch(function(){});return}
-    sel=id;render();return;
+    $("msg").textContent="That spot is taken. Tap an open spot, or tap "+data[sel].trailer+" again to cancel.";return;
   }
-  if(sel===id){sel=null;render();openSheet(id,si);return}
-  if(d){sel=id;render();return}
   openSheet(id,si);
 }
 function chips(){
@@ -235,6 +258,9 @@ function openSheet(id,si){
 }
 function closeSheet(){$("sheet").classList.remove("open");cur=null;document.activeElement&&document.activeElement.blur()}
 $("b-cancel").onclick=closeSheet;
+$("b-move").onclick=function(){sel=cur;closeSheet();render()};
+// Esc closes the sheet or cancels a move (keyboard users on PCs).
+document.addEventListener("keydown",function(e){if(e.key!=="Escape")return;if(histQ)$("h-close").onclick();else if(cur)closeSheet();else if(sel){sel=null;render()}});
 $("b-depart").onclick=function(){
   if(!confirm(data[cur].trailer+" has left the yard?"))return;
   api("/api/depart",{spot:cur}).then(closeSheet,function(){});
@@ -333,7 +359,7 @@ function find(scroll){
 var z=1;
 function setZ(v){z=Math.max(.4,Math.min(2.2,v));$("scene").style.zoom=z}
 var auto=true;
-function fit(f){var w=$("pan").clientWidth;if(w>=700)setZ(Math.max(.4,Math.min(w/1560,(innerHeight-230)/1240,2.2)));else setZ(f?w/1560:1)}
+function fit(f){var w=$("pan").clientWidth;if(w>=700)setZ(Math.max(.4,Math.min(w/1560,(innerHeight-230)/sceneH,2.2)));else setZ(f?w/1560:1)}
 $("zi").onclick=function(){auto=false;setZ(z+.15)};$("zo").onclick=function(){auto=false;setZ(z-.15)};
 $("zf").onclick=function(){auto=true;fit(true)};
 window.addEventListener("resize",function(){if(auto)fit()});
