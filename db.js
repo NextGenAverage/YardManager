@@ -142,34 +142,73 @@ const migrations = [
   // there is no room, and the history says why.
   (db) => {
     const park = db.prepare("SELECT * FROM sections WHERE kind = 'park'").all();
-    const original = park.find((s) => JSON.parse(s.spots).length === 24 && JSON.parse(s.spots)[0] === "P1");
+    const original = park.find(
+      (s) =>
+        JSON.parse(s.spots).length === 24 && JSON.parse(s.spots)[0] === "P1",
+    );
     if (park.length !== 1 || !original) return; // new install or already changed
 
     const rowSpots = Array.from({ length: 7 }, (_, i) => "P" + (i + 1));
     const columnSpots = [13, 12, 11, 10, 9, 8].map((n) => "P" + n);
     const geometry = JSON.parse(original.geometry);
-    db.prepare("UPDATE sections SET spots = ?, geometry = ? WHERE id = ?")
-      .run(JSON.stringify(rowSpots), JSON.stringify({ ...geometry, cols: 7 }), original.id);
-    db.prepare(`INSERT INTO sections (sort, title, kind, default_status, noun, spots, geometry)
-      VALUES (?, NULL, 'park', ?, ?, ?, ?)`).run(original.sort, original.default_status, original.noun,
-      JSON.stringify(columnSpots), JSON.stringify({ o: "w", x: 30, y: 880, cols: 1, cw: 130, sh: 130, th: 50 }));
+    db.prepare("UPDATE sections SET spots = ?, geometry = ? WHERE id = ?").run(
+      JSON.stringify(rowSpots),
+      JSON.stringify({ ...geometry, cols: 7 }),
+      original.id,
+    );
+    db.prepare(
+      `INSERT INTO sections (sort, title, kind, default_status, noun, spots, geometry)
+      VALUES (?, NULL, 'park', ?, ?, ?, ?)`,
+    ).run(
+      original.sort,
+      original.default_status,
+      original.noun,
+      JSON.stringify(columnSpots),
+      JSON.stringify({
+        o: "w",
+        x: 30,
+        y: 880,
+        cols: 1,
+        cw: 130,
+        sh: 130,
+        th: 50,
+      }),
+    );
 
     const kept = new Set([...rowSpots, ...columnSpots]);
-    const stranded = db.prepare("SELECT * FROM visits WHERE departed_at IS NULL AND spot_id LIKE 'P%'").all()
+    const stranded = db
+      .prepare(
+        "SELECT * FROM visits WHERE departed_at IS NULL AND spot_id LIKE 'P%'",
+      )
+      .all()
       .filter((v) => !kept.has(v.spot_id));
-    const pool = db.prepare("SELECT spots FROM sections WHERE kind = 'pool' ORDER BY sort").all()
+    const pool = db
+      .prepare("SELECT spots FROM sections WHERE kind = 'pool' ORDER BY sort")
+      .all()
       .flatMap((s) => JSON.parse(s.spots));
-    const taken = new Set(db.prepare("SELECT spot_id FROM visits WHERE departed_at IS NULL").all().map((r) => r.spot_id));
-    const event = db.prepare(`INSERT INTO events (at, user_name, action, visit_id, plate, from_spot, to_spot, details)
+    const taken = new Set(
+      db
+        .prepare("SELECT spot_id FROM visits WHERE departed_at IS NULL")
+        .all()
+        .map((r) => r.spot_id),
+    );
+    const event =
+      db.prepare(`INSERT INTO events (at, user_name, action, visit_id, plate, from_spot, to_spot, details)
       VALUES (?, 'Layout change', ?, ?, ?, ?, ?, NULL)`);
     for (const v of stranded) {
       const free = pool.find((spot) => !taken.has(spot));
       if (free) {
         taken.add(free);
-        db.prepare("UPDATE visits SET spot_id = ? WHERE id = ?").run(free, v.id);
+        db.prepare("UPDATE visits SET spot_id = ? WHERE id = ?").run(
+          free,
+          v.id,
+        );
         event.run(Date.now(), "move", v.id, v.plate, v.spot_id, free);
       } else {
-        db.prepare("UPDATE visits SET departed_at = ? WHERE id = ?").run(Date.now(), v.id);
+        db.prepare("UPDATE visits SET departed_at = ? WHERE id = ?").run(
+          Date.now(),
+          v.id,
+        );
         event.run(Date.now(), "depart", v.id, v.plate, v.spot_id, null);
       }
     }
@@ -187,29 +226,68 @@ const migrations = [
       label TEXT,
       x INTEGER NOT NULL, y INTEGER NOT NULL, w INTEGER NOT NULL, h INTEGER NOT NULL
     )`);
-    const sections = db.prepare("SELECT * FROM sections").all()
-      .map((s) => ({ ...s, list: JSON.parse(s.spots), g: JSON.parse(s.geometry) }));
+    const sections = db
+      .prepare("SELECT * FROM sections")
+      .all()
+      .map((s) => ({
+        ...s,
+        list: JSON.parse(s.spots),
+        g: JSON.parse(s.geometry),
+      }));
     const r03 = sections.find((s) => s.list.includes("R03"));
     if (!r03) return; // new install: seed() adds the new layout
     const shift = r03.g.x === 520 ? 460 : 0;
-    const building = db.prepare("INSERT INTO buildings (sort, label, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?)");
-    [["WAREHOUSE", 460, 130, 960, 430], [null, 190, 560, 1230, 150], [null, 190, 560, 700, 300]]
-      .forEach(([label, x, y, w, h], i) => building.run(i, label, x + shift, y, w, h));
+    const building = db.prepare(
+      "INSERT INTO buildings (sort, label, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?)",
+    );
+    [
+      ["WAREHOUSE", 460, 130, 960, 430],
+      [null, 190, 560, 1230, 150],
+      [null, 190, 560, 700, 300],
+    ].forEach(([label, x, y, w, h], i) =>
+      building.run(i, label, x + shift, y, w, h),
+    );
     if (!shift) return; // the layout was already changed in another way: leave it
 
-    const setGeometry = db.prepare("UPDATE sections SET geometry = ? WHERE id = ?");
+    const setGeometry = db.prepare(
+      "UPDATE sections SET geometry = ? WHERE id = ?",
+    );
     for (const s of sections) {
-      if (s.kind === "door") setGeometry.run(JSON.stringify({ ...s.g, x: s.g.x + shift }), s.id);
-      if (s.list[0] === "P1" && s.g.y === 1010) setGeometry.run(JSON.stringify({ ...s.g, y: 1052 }), s.id);
+      if (s.kind === "door")
+        setGeometry.run(JSON.stringify({ ...s.g, x: s.g.x + shift }), s.id);
+      if (s.list[0] === "P1" && s.g.y === 1010)
+        setGeometry.run(JSON.stringify({ ...s.g, y: 1052 }), s.id);
     }
     const maxSort = Math.max(...sections.map((s) => s.sort));
-    const add = db.prepare(`INSERT INTO sections (sort, title, kind, default_status, noun, spots, geometry)
+    const add =
+      db.prepare(`INSERT INTO sections (sort, title, kind, default_status, noun, spots, geometry)
       VALUES (?, ?, ?, ?, ?, ?, ?)`);
-    add.run(maxSort + 1, null, "park", "Loaded", "Parking spot ", JSON.stringify(["P14", "P15", "P16", "P17", "P18"]),
-      JSON.stringify({ o: "s", x: 74, y: 30, cols: 5, cw: 48, sh: 110 }));
-    add.run(maxSort + 2, "Street parking", "street", "Undefined", "Street spot ",
+    add.run(
+      maxSort + 1,
+      null,
+      "park",
+      "Loaded",
+      "Parking spot ",
+      JSON.stringify(["P14", "P15", "P16", "P17", "P18"]),
+      JSON.stringify({ o: "s", x: 74, y: 30, cols: 5, cw: 48, sh: 110 }),
+    );
+    add.run(
+      maxSort + 2,
+      "Street parking",
+      "street",
+      "Undefined",
+      "Street spot ",
       JSON.stringify(["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"]),
-      JSON.stringify({ o: "e", x: 10, y: 6, cols: 8, cw: 190, sh: 190, th: 56 }));
+      JSON.stringify({
+        o: "e",
+        x: 10,
+        y: 6,
+        cols: 8,
+        cw: 190,
+        sh: 190,
+        th: 56,
+      }),
+    );
   },
   `
   -- Map editor: each saved layout keeps a copy of the one it replaced, so an
@@ -239,6 +317,10 @@ const migrations = [
     created_by  TEXT
   );
   `,
+  `
+  -- Undefined is shown in yellow (was pale beige), unless it was changed already.
+  UPDATE statuses SET color = '#fffb00' WHERE name = 'Undefined' AND color = '#e6dcc3';
+  `,
 ];
 
 function migrate() {
@@ -255,24 +337,38 @@ function migrate() {
 function seed() {
   if (db.prepare("SELECT COUNT(*) n FROM statuses").get().n) return;
   db.transaction(() => {
-    const status = db.prepare("INSERT INTO statuses (name, color, sort) VALUES (?, ?, ?)");
+    const status = db.prepare(
+      "INSERT INTO statuses (name, color, sort) VALUES (?, ?, ?)",
+    );
     [
       ["Loading", "#f2a516"],
       ["Unloading", "#3b82d9"],
       ["Loaded", "#2fa862"],
       ["Empty", "#8b93a5"],
-      ["Undefined", "#e6dcc3"],
+      ["Undefined", "#fffb00"],
     ].forEach(([name, color], i) => status.run(name, color, i));
 
-    const section = db.prepare(`INSERT INTO sections (sort, title, kind, default_status, noun, spots, geometry)
+    const section =
+      db.prepare(`INSERT INTO sections (sort, title, kind, default_status, noun, spots, geometry)
       VALUES (?, ?, ?, ?, ?, ?, ?)`);
     defaultLayout.sections.forEach((s, i) => {
       const { o, x, y, cols, cw, sh, th } = s;
-      section.run(i, s.title || null, s.kind, s.defaultStatus, s.noun,
-        JSON.stringify(s.spots), JSON.stringify({ o, x, y, cols, cw, sh, th }));
+      section.run(
+        i,
+        s.title || null,
+        s.kind,
+        s.defaultStatus,
+        s.noun,
+        JSON.stringify(s.spots),
+        JSON.stringify({ o, x, y, cols, cw, sh, th }),
+      );
     });
-    const building = db.prepare("INSERT INTO buildings (sort, label, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?)");
-    defaultLayout.buildings.forEach((b, i) => building.run(i, b.label || null, b.x, b.y, b.w, b.h));
+    const building = db.prepare(
+      "INSERT INTO buildings (sort, label, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?)",
+    );
+    defaultLayout.buildings.forEach((b, i) =>
+      building.run(i, b.label || null, b.x, b.y, b.w, b.h),
+    );
   })();
 }
 
@@ -286,19 +382,24 @@ function getStatuses() {
 }
 
 function getBuildings() {
-  return db.prepare("SELECT label, x, y, w, h FROM buildings ORDER BY sort, id").all();
+  return db
+    .prepare("SELECT label, x, y, w, h FROM buildings ORDER BY sort, id")
+    .all();
 }
 
 function getSections() {
-  return db.prepare("SELECT * FROM sections ORDER BY sort, id").all().map((s) => ({
-    id: s.id,
-    title: s.title,
-    kind: s.kind,
-    defaultStatus: s.default_status,
-    noun: s.noun,
-    spots: JSON.parse(s.spots),
-    ...JSON.parse(s.geometry),
-  }));
+  return db
+    .prepare("SELECT * FROM sections ORDER BY sort, id")
+    .all()
+    .map((s) => ({
+      id: s.id,
+      title: s.title,
+      kind: s.kind,
+      defaultStatus: s.default_status,
+      noun: s.noun,
+      spots: JSON.parse(s.spots),
+      ...JSON.parse(s.geometry),
+    }));
 }
 
 // ---- Map editor: replace the whole layout, keep the old one as a version ----
@@ -310,28 +411,47 @@ const getLayout = () => ({
 
 // layout: { sections, buildings }, already checked (layout.js).
 const saveLayout = db.transaction(({ sections, buildings }, by) => {
-  db.prepare("INSERT INTO layout_versions (saved_at, saved_by, layout) VALUES (?, ?, ?)")
-    .run(Date.now(), by || null, JSON.stringify(getLayout()));
+  db.prepare(
+    "INSERT INTO layout_versions (saved_at, saved_by, layout) VALUES (?, ?, ?)",
+  ).run(Date.now(), by || null, JSON.stringify(getLayout()));
   db.prepare("DELETE FROM sections").run();
   db.prepare("DELETE FROM buildings").run();
-  const section = db.prepare(`INSERT INTO sections (sort, title, kind, default_status, noun, spots, geometry)
+  const section =
+    db.prepare(`INSERT INTO sections (sort, title, kind, default_status, noun, spots, geometry)
     VALUES (?, ?, ?, ?, ?, ?, ?)`);
   sections.forEach((s, i) => {
     const { o, x, y, cols, cw, sh, th } = s;
-    section.run(i, s.title || null, s.kind, s.defaultStatus, s.noun, JSON.stringify(s.spots),
-      JSON.stringify({ o, x, y, cols, cw, sh, th }));
+    section.run(
+      i,
+      s.title || null,
+      s.kind,
+      s.defaultStatus,
+      s.noun,
+      JSON.stringify(s.spots),
+      JSON.stringify({ o, x, y, cols, cw, sh, th }),
+    );
   });
-  const building = db.prepare("INSERT INTO buildings (sort, label, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?)");
-  buildings.forEach((b, i) => building.run(i, b.label || null, b.x, b.y, b.w, b.h));
+  const building = db.prepare(
+    "INSERT INTO buildings (sort, label, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?)",
+  );
+  buildings.forEach((b, i) =>
+    building.run(i, b.label || null, b.x, b.y, b.w, b.h),
+  );
 });
 
 function listLayoutVersions() {
-  return db.prepare("SELECT id, saved_at, saved_by FROM layout_versions ORDER BY id DESC LIMIT 30").all()
+  return db
+    .prepare(
+      "SELECT id, saved_at, saved_by FROM layout_versions ORDER BY id DESC LIMIT 30",
+    )
+    .all()
     .map((v) => ({ id: v.id, savedAt: v.saved_at, savedBy: v.saved_by }));
 }
 
 function getLayoutVersion(id) {
-  const v = db.prepare("SELECT layout FROM layout_versions WHERE id = ?").get(id);
+  const v = db
+    .prepare("SELECT layout FROM layout_versions WHERE id = ?")
+    .get(id);
   return v ? JSON.parse(v.layout) : null;
 }
 
@@ -339,12 +459,22 @@ function getLayoutVersion(id) {
 // The carrier comes from the trailer register.
 function getPlacements() {
   const out = {};
-  const rows = db.prepare(`SELECT v.*, t.carrier FROM visits v LEFT JOIN trailers t ON t.plate = v.plate
-    WHERE v.departed_at IS NULL`).all();
+  const rows = db
+    .prepare(
+      `SELECT v.*, t.carrier FROM visits v LEFT JOIN trailers t ON t.plate = v.plate
+    WHERE v.departed_at IS NULL`,
+    )
+    .all();
   for (const v of rows) {
     out[v.spot_id] = {
-      plate: v.plate, trailerId: v.trailer_id, carrier: v.carrier ?? null, status: v.status, note: v.note,
-      damaged: !!v.damaged, since: v.arrived_at, expectedDeparture: v.expected_departure ?? null,
+      plate: v.plate,
+      trailerId: v.trailer_id,
+      carrier: v.carrier ?? null,
+      status: v.status,
+      note: v.note,
+      damaged: !!v.damaged,
+      since: v.arrived_at,
+      expectedDeparture: v.expected_departure ?? null,
     };
   }
   return out;
@@ -358,22 +488,38 @@ function statusExists(name) {
   return !!db.prepare("SELECT 1 FROM statuses WHERE name = ?").get(name);
 }
 
-const activeAt = db.prepare("SELECT * FROM visits WHERE departed_at IS NULL AND spot_id = ?");
-const activePlate = db.prepare("SELECT * FROM visits WHERE departed_at IS NULL AND plate = ?");
+const activeAt = db.prepare(
+  "SELECT * FROM visits WHERE departed_at IS NULL AND spot_id = ?",
+);
+const activePlate = db.prepare(
+  "SELECT * FROM visits WHERE departed_at IS NULL AND plate = ?",
+);
 const setSpot = db.prepare("UPDATE visits SET spot_id = ? WHERE id = ?");
-const setDeparted = db.prepare("UPDATE visits SET departed_at = ? WHERE id = ?");
-const insertEvent = db.prepare(`INSERT INTO events (at, user_name, action, visit_id, plate, from_spot, to_spot, details)
+const setDeparted = db.prepare(
+  "UPDATE visits SET departed_at = ? WHERE id = ?",
+);
+const insertEvent =
+  db.prepare(`INSERT INTO events (at, user_name, action, visit_id, plate, from_spot, to_spot, details)
   VALUES (@at, @by, @action, @visit_id, @plate, @from, @to, @details)`);
 
 function log(action, v, { by, from = null, to = null, details = null }) {
-  insertEvent.run({ at: Date.now(), by: by || null, action, visit_id: v.id, plate: v.plate,
-    from, to, details: details && JSON.stringify(details) });
+  insertEvent.run({
+    at: Date.now(),
+    by: by || null,
+    action,
+    visit_id: v.id,
+    plate: v.plate,
+    from,
+    to,
+    details: details && JSON.stringify(details),
+  });
 }
 
 // Compare a visit with new values; returns { field: [old, new] } or null if nothing changed.
 function changes(v, next) {
   const out = {};
-  for (const k of Object.keys(next)) if (next[k] !== undefined && next[k] !== v[k]) out[k] = [v[k], next[k]];
+  for (const k of Object.keys(next))
+    if (next[k] !== undefined && next[k] !== v[k]) out[k] = [v[k], next[k]];
   return Object.keys(out).length ? out : null;
 }
 
@@ -385,21 +531,40 @@ const GONE = "That trailer has already been moved or removed.";
 // ---- Incoming: trailers expected to arrive ----
 
 function getIncoming() {
-  return db.prepare("SELECT * FROM incoming ORDER BY expected_at, id").all().map((r) => ({
-    id: r.id, plate: r.plate, trailerId: r.trailer_id, carrier: r.carrier ?? null,
-    expectedAt: r.expected_at, note: r.note, createdBy: r.created_by,
-  }));
+  return db
+    .prepare("SELECT * FROM incoming ORDER BY expected_at, id")
+    .all()
+    .map((r) => ({
+      id: r.id,
+      plate: r.plate,
+      trailerId: r.trailer_id,
+      carrier: r.carrier ?? null,
+      expectedAt: r.expected_at,
+      note: r.note,
+      createdBy: r.created_by,
+    }));
 }
 
 // Add an expected arrival, or change the one for that reg. number.
 function saveIncoming({ plate, trailerId, carrier, expectedAt, note, by }) {
-  if (carrier && !carrierExists(carrier)) throw new YardError(`Unknown carrier ${carrier}.`);
-  if (activePlate.get(plate)) throw new YardError(`${plate} is already in the yard.`);
-  db.prepare(`INSERT INTO incoming (plate, trailer_id, carrier, expected_at, note, created_at, created_by)
+  if (carrier && !carrierExists(carrier))
+    throw new YardError(`Unknown carrier ${carrier}.`);
+  if (activePlate.get(plate))
+    throw new YardError(`${plate} is already in the yard.`);
+  db.prepare(
+    `INSERT INTO incoming (plate, trailer_id, carrier, expected_at, note, created_at, created_by)
     VALUES (?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT (plate) DO UPDATE SET trailer_id = excluded.trailer_id, carrier = excluded.carrier,
-      expected_at = excluded.expected_at, note = excluded.note`)
-    .run(plate, trailerId, carrier || null, expectedAt, note, Date.now(), by || null);
+      expected_at = excluded.expected_at, note = excluded.note`,
+  ).run(
+    plate,
+    trailerId,
+    carrier || null,
+    expectedAt,
+    note,
+    Date.now(),
+    by || null,
+  );
 }
 
 function deleteIncoming(id) {
@@ -409,7 +574,9 @@ function deleteIncoming(id) {
 // ---- Carriers ----
 
 function getCarriers() {
-  return db.prepare("SELECT code, name, color FROM carriers ORDER BY code").all();
+  return db
+    .prepare("SELECT code, name, color FROM carriers ORDER BY code")
+    .all();
 }
 
 function carrierExists(code) {
@@ -418,64 +585,106 @@ function carrierExists(code) {
 
 // Add a carrier or change its name/color.
 function saveCarrier({ code, name, color }) {
-  db.prepare(`INSERT INTO carriers (code, name, color) VALUES (?, ?, ?)
-    ON CONFLICT (code) DO UPDATE SET name = excluded.name, color = excluded.color`).run(code, name, color);
+  db.prepare(
+    `INSERT INTO carriers (code, name, color) VALUES (?, ?, ?)
+    ON CONFLICT (code) DO UPDATE SET name = excluded.name, color = excluded.color`,
+  ).run(code, name, color);
 }
 
 function deleteCarrier(code) {
-  const used = db.prepare("SELECT COUNT(*) n FROM trailers WHERE carrier = ?").get(code).n;
-  if (used) throw new YardError(`${code} is used by ${used} reg. number(s) in the register. Change those first.`);
+  const used = db
+    .prepare("SELECT COUNT(*) n FROM trailers WHERE carrier = ?")
+    .get(code).n;
+  if (used)
+    throw new YardError(
+      `${code} is used by ${used} reg. number(s) in the register. Change those first.`,
+    );
   db.prepare("DELETE FROM carriers WHERE code = ?").run(code);
 }
 
 // ---- Trailer register: reg. number -> trailer ID + carrier ----
 
-const trailerRow = (r) => r && {
-  plate: r.plate, trailerId: r.trailer_id, carrier: r.carrier ?? null,
-  updatedAt: r.updated_at, updatedBy: r.updated_by, spot: r.spot_id ?? null,
-};
+const trailerRow = (r) =>
+  r && {
+    plate: r.plate,
+    trailerId: r.trailer_id,
+    carrier: r.carrier ?? null,
+    updatedAt: r.updated_at,
+    updatedBy: r.updated_by,
+    spot: r.spot_id ?? null,
+  };
 
 function getTrailer(plate) {
-  return trailerRow(db.prepare("SELECT * FROM trailers WHERE plate = ?").get(plate)) ?? null;
+  return (
+    trailerRow(
+      db.prepare("SELECT * FROM trailers WHERE plate = ?").get(plate),
+    ) ?? null
+  );
 }
 
 // Search the register by reg. number, trailer ID or carrier (part of any).
 // Also tells where each trailer is standing, if it is in the yard.
 function listTrailers(q = "", limit = 200) {
-  const where = q ? "WHERE t.plate LIKE ? OR t.trailer_id LIKE ? OR t.carrier LIKE ?" : "";
+  const where = q
+    ? "WHERE t.plate LIKE ? OR t.trailer_id LIKE ? OR t.carrier LIKE ?"
+    : "";
   const args = q ? [`%${q}%`, `%${q}%`, `%${q}%`] : [];
-  const rows = db.prepare(`SELECT t.*, v.spot_id FROM trailers t
+  const rows = db
+    .prepare(
+      `SELECT t.*, v.spot_id FROM trailers t
     LEFT JOIN visits v ON v.plate = t.plate AND v.departed_at IS NULL
-    ${where} ORDER BY t.plate LIMIT ?`).all(...args, limit);
-  const total = db.prepare(`SELECT COUNT(*) n FROM trailers t ${where}`).get(...args).n;
+    ${where} ORDER BY t.plate LIMIT ?`,
+    )
+    .all(...args, limit);
+  const total = db
+    .prepare(`SELECT COUNT(*) n FROM trailers t ${where}`)
+    .get(...args).n;
   return { trailers: rows.map(trailerRow), total };
 }
 
-const upsertTrailer = db.prepare(`INSERT INTO trailers (plate, trailer_id, carrier, updated_at, updated_by) VALUES (?, ?, ?, ?, ?)
+const upsertTrailer =
+  db.prepare(`INSERT INTO trailers (plate, trailer_id, carrier, updated_at, updated_by) VALUES (?, ?, ?, ?, ?)
   ON CONFLICT (plate) DO UPDATE SET trailer_id = excluded.trailer_id, carrier = excluded.carrier,
     updated_at = excluded.updated_at, updated_by = excluded.updated_by`);
 
 // Link a reg. number to a trailer ID and carrier (new link or a change). A
 // trailer of that reg. number standing in the yard gets the new trailer ID too.
 // Returns true if anything changed.
-const linkTrailer = db.transaction(({ plate, trailerId, carrier = null, by }) => {
-  if (carrier && !carrierExists(carrier)) throw new YardError(`Unknown carrier ${carrier}.`);
-  const old = getTrailer(plate);
-  if (old && old.trailerId === trailerId && old.carrier === carrier) return false;
-  upsertTrailer.run(plate, trailerId, carrier, Date.now(), by || null);
-  const v = activePlate.get(plate);
-  if (v) db.prepare("UPDATE visits SET trailer_id = ? WHERE id = ?").run(trailerId, v.id);
-  const details = { trailer_id: [old?.trailerId ?? "", trailerId] };
-  if ((old?.carrier ?? null) !== carrier) details.carrier = [old?.carrier ?? "", carrier ?? ""];
-  log("link", { id: v?.id ?? null, plate }, { by, from: v?.spot_id ?? null, details });
-  return true;
-});
+const linkTrailer = db.transaction(
+  ({ plate, trailerId, carrier = null, by }) => {
+    if (carrier && !carrierExists(carrier))
+      throw new YardError(`Unknown carrier ${carrier}.`);
+    const old = getTrailer(plate);
+    if (old && old.trailerId === trailerId && old.carrier === carrier)
+      return false;
+    upsertTrailer.run(plate, trailerId, carrier, Date.now(), by || null);
+    const v = activePlate.get(plate);
+    if (v)
+      db.prepare("UPDATE visits SET trailer_id = ? WHERE id = ?").run(
+        trailerId,
+        v.id,
+      );
+    const details = { trailer_id: [old?.trailerId ?? "", trailerId] };
+    if ((old?.carrier ?? null) !== carrier)
+      details.carrier = [old?.carrier ?? "", carrier ?? ""];
+    log(
+      "link",
+      { id: v?.id ?? null, plate },
+      { by, from: v?.spot_id ?? null, details },
+    );
+    return true;
+  },
+);
 
 const unlinkTrailer = db.transaction(({ plate, by }) => {
   const old = getTrailer(plate);
   if (!old) throw new YardError("That reg. number isn't in the register.");
   db.prepare("DELETE FROM trailers WHERE plate = ?").run(plate);
-  log("unlink", { id: null, plate }, { by, details: { trailer_id: [old.trailerId, ""] } });
+  log(
+    "unlink",
+    { id: null, plate },
+    { by, details: { trailer_id: [old.trailerId, ""] } },
+  );
 });
 
 // CSV import: rows of { plate, trailerId, carrier }, already checked.
@@ -492,47 +701,103 @@ const importTrailers = db.transaction((rows, by) => {
 // The register decides the trailer ID and carrier of a known reg. number; a new
 // reg. number is added to the register with the trailer ID and carrier given.
 // expectedDeparture: a time, null to clear it, or undefined to leave it as it is.
-const placeTrailer = db.transaction(({ spot, plate, trailerId, carrier, status, note, damaged, arrivedAt, expectedDeparture, by }) => {
-  const link = getTrailer(plate);
-  if (link && trailerId && link.trailerId !== trailerId) {
-    throw new YardError(`${plate} is linked to trailer ID ${link.trailerId}. Change the link on the Manage page.`);
-  }
-  if (link) trailerId = link.trailerId;
-  else if (trailerId) {
-    if (carrier && !carrierExists(carrier)) throw new YardError(`Unknown carrier ${carrier}.`);
-    upsertTrailer.run(plate, trailerId, carrier || null, Date.now(), by || null);
-  }
+const placeTrailer = db.transaction(
+  ({
+    spot,
+    plate,
+    trailerId,
+    carrier,
+    status,
+    note,
+    damaged,
+    arrivedAt,
+    expectedDeparture,
+    by,
+  }) => {
+    const link = getTrailer(plate);
+    if (link && trailerId && link.trailerId !== trailerId) {
+      throw new YardError(
+        `${plate} is linked to trailer ID ${link.trailerId}. Change the link on the Manage page.`,
+      );
+    }
+    if (link) trailerId = link.trailerId;
+    else if (trailerId) {
+      if (carrier && !carrierExists(carrier))
+        throw new YardError(`Unknown carrier ${carrier}.`);
+      upsertTrailer.run(
+        plate,
+        trailerId,
+        carrier || null,
+        Date.now(),
+        by || null,
+      );
+    }
 
-  const here = activeAt.get(spot);
-  let v = activePlate.get(plate);
-  if (v && here && v.id !== here.id) departVisit(here, by);
-  if (v && v.spot_id !== spot) {
-    setSpot.run(spot, v.id);
-    log("move", v, { by, from: v.spot_id, to: spot });
-  }
-  v = v || here;
-  if (!v) {
-    // A new arrival: if it was on the Incoming list, take it off and keep the planned time.
-    const expected = db.prepare("SELECT * FROM incoming WHERE plate = ?").get(plate);
-    if (expected) db.prepare("DELETE FROM incoming WHERE id = ?").run(expected.id);
-    const { lastInsertRowid } = db.prepare(`INSERT INTO visits (plate, trailer_id, status, note, damaged, spot_id, arrived_at,
-      expected_arrival, expected_departure) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(plate, trailerId, status, note, +damaged, spot, arrivedAt || Date.now(), expected?.expected_at ?? null, expectedDeparture ?? null);
-    const details = { status, note, damaged, trailer_id: trailerId };
-    if (expected) details.expected_arrival = expected.expected_at;
-    log("arrive", { id: lastInsertRowid, plate }, { by, to: spot, details });
-    return;
-  }
-  // Same visit: status/note/damaged change, corrected plate, trailer ID, arrival or planned departure.
-  const diff = changes(v, {
-    plate, trailer_id: trailerId, status, note, damaged: +damaged, arrived_at: arrivedAt, expected_departure: expectedDeparture,
-  });
-  if (!diff) return;
-  db.prepare(`UPDATE visits SET plate = ?, trailer_id = ?, status = ?, note = ?, damaged = ?, arrived_at = ?,
-    expected_departure = ? WHERE id = ?`).run(plate, trailerId, status, note, +damaged, arrivedAt || v.arrived_at,
-    expectedDeparture === undefined ? v.expected_departure : expectedDeparture, v.id);
-  log("edit", { id: v.id, plate }, { by, to: spot, details: diff });
-});
+    const here = activeAt.get(spot);
+    let v = activePlate.get(plate);
+    if (v && here && v.id !== here.id) departVisit(here, by);
+    if (v && v.spot_id !== spot) {
+      setSpot.run(spot, v.id);
+      log("move", v, { by, from: v.spot_id, to: spot });
+    }
+    v = v || here;
+    if (!v) {
+      // A new arrival: if it was on the Incoming list, take it off and keep the planned time.
+      const expected = db
+        .prepare("SELECT * FROM incoming WHERE plate = ?")
+        .get(plate);
+      if (expected)
+        db.prepare("DELETE FROM incoming WHERE id = ?").run(expected.id);
+      const { lastInsertRowid } = db
+        .prepare(
+          `INSERT INTO visits (plate, trailer_id, status, note, damaged, spot_id, arrived_at,
+      expected_arrival, expected_departure) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          plate,
+          trailerId,
+          status,
+          note,
+          +damaged,
+          spot,
+          arrivedAt || Date.now(),
+          expected?.expected_at ?? null,
+          expectedDeparture ?? null,
+        );
+      const details = { status, note, damaged, trailer_id: trailerId };
+      if (expected) details.expected_arrival = expected.expected_at;
+      log("arrive", { id: lastInsertRowid, plate }, { by, to: spot, details });
+      return;
+    }
+    // Same visit: status/note/damaged change, corrected plate, trailer ID, arrival or planned departure.
+    const diff = changes(v, {
+      plate,
+      trailer_id: trailerId,
+      status,
+      note,
+      damaged: +damaged,
+      arrived_at: arrivedAt,
+      expected_departure: expectedDeparture,
+    });
+    if (!diff) return;
+    db.prepare(
+      `UPDATE visits SET plate = ?, trailer_id = ?, status = ?, note = ?, damaged = ?, arrived_at = ?,
+    expected_departure = ? WHERE id = ?`,
+    ).run(
+      plate,
+      trailerId,
+      status,
+      note,
+      +damaged,
+      arrivedAt || v.arrived_at,
+      expectedDeparture === undefined
+        ? v.expected_departure
+        : expectedDeparture,
+      v.id,
+    );
+    log("edit", { id: v.id, plate }, { by, to: spot, details: diff });
+  },
+);
 
 const moveTrailer = db.transaction(({ from, to, by }) => {
   const v = activeAt.get(from);
@@ -558,43 +823,91 @@ const removeTrailer = db.transaction(({ spot, by }) => {
   const v = activeAt.get(spot);
   if (!v) throw new YardError(GONE);
   db.prepare("DELETE FROM visits WHERE id = ?").run(v.id);
-  log("remove", v, { by, from: spot, details: { status: v.status, note: v.note, arrived_at: v.arrived_at } });
+  log("remove", v, {
+    by,
+    from: spot,
+    details: { status: v.status, note: v.note, arrived_at: v.arrived_at },
+  });
 });
 
 // Correct the arrival/departure time of a visit (e.g. one that has already left).
 const correctTimes = db.transaction(({ id, arrivedAt, departedAt, by }) => {
   const v = db.prepare("SELECT * FROM visits WHERE id = ?").get(id);
   if (!v) throw new YardError("That visit no longer exists.");
-  if (departedAt !== undefined && v.departed_at === null) throw new YardError("This trailer hasn't departed yet.");
-  const arr = arrivedAt ?? v.arrived_at, dep = departedAt ?? v.departed_at;
-  if (dep !== null && dep < arr) throw new YardError("Departure can't be before arrival.");
+  if (departedAt !== undefined && v.departed_at === null)
+    throw new YardError("This trailer hasn't departed yet.");
+  const arr = arrivedAt ?? v.arrived_at,
+    dep = departedAt ?? v.departed_at;
+  if (dep !== null && dep < arr)
+    throw new YardError("Departure can't be before arrival.");
   const diff = changes(v, { arrived_at: arrivedAt, departed_at: departedAt });
   if (!diff) return;
-  db.prepare("UPDATE visits SET arrived_at = ?, departed_at = ? WHERE id = ?").run(arr, dep, id);
+  db.prepare(
+    "UPDATE visits SET arrived_at = ?, departed_at = ? WHERE id = ?",
+  ).run(arr, dep, id);
   log("edit", v, { by, from: v.spot_id, details: diff });
 });
 
 // History for one trailer (found by plate or trailer ID: its visits and events),
 // one spot, or the whole yard.
 function getHistory({ trailer, spot, limit = 200 }) {
-  const ev = (where, ...args) => db.prepare(`SELECT * FROM events ${where} ORDER BY at DESC, id DESC LIMIT ${limit}`)
-    .all(...args).map((e) => ({ ...e, details: e.details && JSON.parse(e.details) }));
+  const ev = (where, ...args) =>
+    db
+      .prepare(
+        `SELECT * FROM events ${where} ORDER BY at DESC, id DESC LIMIT ${limit}`,
+      )
+      .all(...args)
+      .map((e) => ({ ...e, details: e.details && JSON.parse(e.details) }));
   if (trailer) {
-    const visits = db.prepare(`SELECT * FROM visits WHERE plate = ? OR trailer_id = ? COLLATE NOCASE
-      ORDER BY arrived_at DESC LIMIT 50`).all(trailer, trailer);
+    const visits = db
+      .prepare(
+        `SELECT * FROM visits WHERE plate = ? OR trailer_id = ? COLLATE NOCASE
+      ORDER BY arrived_at DESC LIMIT 50`,
+      )
+      .all(trailer, trailer);
     const plates = [...new Set([trailer, ...visits.map((v) => v.plate)])];
-    return { visits, events: ev(`WHERE plate IN (${plates.map(() => "?").join(",")})`, ...plates) };
+    return {
+      visits,
+      events: ev(
+        `WHERE plate IN (${plates.map(() => "?").join(",")})`,
+        ...plates,
+      ),
+    };
   }
-  if (spot) return { events: ev("WHERE from_spot = ? OR to_spot = ?", spot, spot) };
+  if (spot)
+    return { events: ev("WHERE from_spot = ? OR to_spot = ?", spot, spot) };
   return { events: ev("") };
 }
 
 module.exports = {
-  db, YardError,
-  getStatuses, getSections, getBuildings, getPlacements,
-  getLayout, saveLayout, listLayoutVersions, getLayoutVersion, spotExists, statusExists, getHistory,
-  placeTrailer, moveTrailer, departTrailer, removeTrailer, correctTimes,
-  getCarriers, carrierExists, saveCarrier, deleteCarrier,
-  getIncoming, saveIncoming, deleteIncoming,
-  getTrailer, listTrailers, linkTrailer, unlinkTrailer, importTrailers,
+  db,
+  YardError,
+  getStatuses,
+  getSections,
+  getBuildings,
+  getPlacements,
+  getLayout,
+  saveLayout,
+  listLayoutVersions,
+  getLayoutVersion,
+  spotExists,
+  statusExists,
+  getHistory,
+  placeTrailer,
+  moveTrailer,
+  departTrailer,
+  removeTrailer,
+  correctTimes,
+  getCarriers,
+  carrierExists,
+  saveCarrier,
+  deleteCarrier,
+  getIncoming,
+  saveIncoming,
+  deleteIncoming,
+  getTrailer,
+  listTrailers,
+  linkTrailer,
+  unlinkTrailer,
+  importTrailers,
 };
