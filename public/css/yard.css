@@ -458,7 +458,9 @@ h2 {   /* section title, e.g. "TRAILER PARKING" */
       var(--c) 45%,
       color-mix(in srgb, var(--c) 80%, #000));
   box-shadow: 0 4px 8px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 255, 255, .35);
-  transition: transform .12s;
+  outline: 3px solid transparent;   /* red when damaged (.dmg), fades in */
+  outline-offset: 1px;
+  transition: transform .2s, --c .45s ease, --fg .45s ease, outline-color .3s, box-shadow .25s;
 }
 
 .trl .tr {   /* trailer number; font size set by map.js fitNumbers */
@@ -486,8 +488,7 @@ h2 {   /* section title, e.g. "TRAILER PARKING" */
 }
 
 .trl.dmg {
-  outline: 3px solid #e5392f;
-  outline-offset: 1px;
+  outline-color: #e5392f;
 }
 
 .bay.lift .trl {   /* lifted with "Move" */
@@ -1544,4 +1545,62 @@ input[type="datetime-local"]:not(:disabled) {
 
 .quick button:hover {
   border-color: var(--accent);
+}
+
+
+/* ============================================================
+   Smooth changes (map.js animates moves, arrivals and departures)
+   ============================================================ */
+
+/* Status colors are registered as colors so a change of status fades
+   between them instead of switching at once. */
+@property --c {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #8b93a5;
+}
+
+@property --fg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #fff;
+}
+
+/* Slot name (e.g. "P5") only on empty spots */
+.bay.taken:not(.ed-occ) .lbl {
+  display: none;
+}
+
+/* A departing trailer that is fading out can not be tapped */
+.trl.leaving {
+  pointer-events: none;
+}
+
+/* History and Incoming panels slide in from the right */
+@keyframes slide-in {
+  from { transform: translateX(100%); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+
+#hist.open,
+#incoming.open {
+  animation: fade-in .2s ease;
+}
+
+#hist.open .panel,
+#incoming.open .panel {
+  animation: slide-in .28s cubic-bezier(.2, .8, .2, 1);
+}
+
+/* Devices set to "reduce motion": changes happen at once */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
 }

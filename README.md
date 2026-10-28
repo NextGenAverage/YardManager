@@ -16,6 +16,7 @@ Built with **Node.js**, **Express** and **SQLite**, plus a plain HTML/JavaScript
 - 🔍 **Search** by reg. number, trailer ID, carrier or note
 - 👆 **One tap** opens a trailer's details; **Move** lifts it to another spot
 - 📡 **Live updates:** every open map changes instantly, with a Live/Offline indicator
+- 🎞️ **Smooth changes:** moved trailers glide to their new spot, new ones pop in, departed ones fade out, and status colors blend (off when the device is set to *reduce motion*)
 - 📱 **Works on phones, tablets, PCs and wall screens**, with zoom that remembers your choice
 
 ### 📦 Trailers and arrivals
