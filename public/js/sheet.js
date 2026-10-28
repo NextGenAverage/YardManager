@@ -25,6 +25,39 @@ function renderDamaged() {
   $("f-dmg").classList.toggle("sel", damaged);
 }
 
+// ---- Trailer ID: filled in from the register (reg. number -> trailer ID) ----
+// A known reg. number fills in its trailer ID, locked; links are changed on the
+// Manage page. For a new reg. number operators must type the trailer ID.
+
+let linkedId = null; // trailer ID from the register for the reg. number typed, or null
+let lookups = 0;     // to ignore answers to older lookups while typing
+let lookupTimer;
+
+async function lookUpPlate() {
+  const plate = $("f-tr").value.trim().toUpperCase();
+  const n = ++lookups;
+  const res = plate
+    ? await fetch(`/api/trailers/${encodeURIComponent(plate)}`).then((r) => r.json()).catch(() => null)
+    : null;
+  if (n !== lookups) return; // a newer lookup has started
+  const link = res?.trailer;
+  if (link) $("f-tid").value = link.trailerId;
+  else if (linkedId !== null) $("f-tid").value = ""; // it was filled in for another reg. number
+  linkedId = link ? link.trailerId : null;
+  showTrailerIdState();
+}
+
+function showTrailerIdState(error) {
+  const hint = $("tid-hint");
+  const operator = can("operator");
+  $("f-tid").readOnly = linkedId !== null;
+  hint.classList.toggle("error", !!error);
+  if (error) hint.textContent = error;
+  else if (!operator || !$("f-tr").value.trim()) hint.textContent = "";
+  else if (linkedId !== null) hint.innerHTML = 'Linked to this reg. number. Change it on the <a href="/manage.html#trailers">Manage page</a>.';
+  else hint.textContent = "New reg. number: enter its trailer ID.";
+}
+
 export function openSheet(id, sectionIndex) {
   spot = id;
   const t = yard.placements[id];
@@ -55,6 +88,9 @@ export function openSheet(id, sectionIndex) {
   $("occ-row").hidden = !t || !full;
   $("sheet").classList.add("open");
   if (!t && full) setTimeout(() => $("f-tr").focus(), 220);
+  linkedId = null;
+  showTrailerIdState();
+  if (t) lookUpPlate();
 }
 
 export function closeSheet() {
@@ -66,6 +102,13 @@ export function closeSheet() {
 async function save() {
   const plate = $("f-tr").value.trim().toUpperCase();
   if (!plate) return $("f-tr").focus();
+  if (can("operator")) {
+    await lookUpPlate(); // make sure the trailer ID belongs to the reg. number as typed now
+    if (!$("f-tid").value.trim()) {
+      showTrailerIdState("Trailer ID is required for a new reg. number.");
+      return $("f-tid").focus();
+    }
+  }
   const arrival = $("f-arr").value;
   const ok = await send("/api/place", {
     spot, plate, status, damaged,
@@ -106,6 +149,10 @@ export function initSheet() {
     if (chip) { status = chip.dataset.k; renderChips(); }
   };
   $("f-dmg").onclick = () => { damaged = !damaged; renderDamaged(); };
+  $("f-tr").oninput = () => {
+    clearTimeout(lookupTimer);
+    lookupTimer = setTimeout(lookUpPlate, 250);
+  };
   $("b-save").onclick = save;
   $("b-cancel").onclick = closeSheet;
   $("b-move").onclick = move;

@@ -991,3 +991,101 @@ a.btn {
   font-size: 14px;
   color: var(--mute);
 }
+
+
+/* ============================================================
+   Trailer ID in the edit sheet
+   ============================================================ */
+
+#sheet input[readonly] {
+  opacity: .75;
+}
+
+.hint {
+  min-height: 0;
+  margin: -4px 2px 8px;
+  font-size: 12px;
+  color: var(--mute);
+}
+
+.hint:empty {
+  display: none;
+}
+
+.hint a {
+  color: var(--accent);
+}
+
+
+/* ============================================================
+   Manage page: tabs and the trailer register
+   ============================================================ */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  max-width: 900px;
+  margin: 10px auto 0;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tabs a {
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  color: var(--mute);
+  text-decoration: none;
+}
+
+.tabs a.on {
+  border-color: var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.intro {
+  font-size: 14px;
+  color: var(--mute);
+}
+
+.search {
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.count {
+  margin: 6px 0;
+  font-size: 13px;
+  color: var(--mute);
+}
+
+.cell-input {
+  width: 100%;
+  min-width: 160px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+}
+
+.link.danger {
+  margin-left: 10px;
+  color: var(--danger);
+}
+
+/* Reg. numbers are saved in capitals; show them that way while typing */
+#f-tr,
+#t-add [name="plate"] {
+  text-transform: uppercase;
+}

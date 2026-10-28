@@ -1,26 +1,26 @@
-// User admin page: add users, change role, deactivate, reset passwords.
+// Manage page, Users tab (admins): add users, change role, deactivate, reset passwords.
 import { $, esc, formatTime } from "./util.js";
 
 const label = (role) => role[0].toUpperCase() + role.slice(1);
 let roles = [];
 
 async function request(path, body) {
-  $("error").textContent = "";
+  $("u-error").textContent = "";
   const res = await fetch(path, body
     ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
     : {});
   if (res.status === 401) location.href = "/login.html";
   const json = await res.json();
   if (!res.ok) {
-    $("error").textContent = json.error || "Something went wrong.";
+    $("u-error").textContent = json.error || "Something went wrong.";
     throw new Error(json.error);
   }
   return json;
 }
 
 function showPassword(username, password) {
-  $("notice").hidden = false;
-  $("notice").innerHTML = `Temporary password for <b>${esc(username)}</b>: <code>${esc(password)}</code><br>`
+  $("u-notice").hidden = false;
+  $("u-notice").innerHTML = `Temporary password for <b>${esc(username)}</b>: <code>${esc(password)}</code><br>`
     + "Give it to them. They choose their own password when they first log in.";
 }
 
@@ -41,12 +41,12 @@ function rowHtml(u) {
 async function load() {
   const data = await request("/api/users");
   roles = data.roles;
-  $("rows").innerHTML = data.users.map(rowHtml).join("");
-  $("add-role").innerHTML = roleOptions("worker");
+  $("u-rows").innerHTML = data.users.map(rowHtml).join("");
+  $("u-add-role").innerHTML = roleOptions("worker");
 }
 
 // Role and active changes save immediately.
-$("rows").onchange = async (e) => {
+async function change(e) {
   const field = e.target.dataset.field;
   const id = e.target.closest("tr").dataset.id;
   const value = field === "active" ? e.target.checked : e.target.value;
@@ -55,24 +55,28 @@ $("rows").onchange = async (e) => {
   } finally {
     load(); // also puts the control back if the change was refused
   }
-};
+}
 
-$("rows").onclick = async (e) => {
+async function resetPassword(e) {
   const username = e.target.dataset.reset;
   if (!username) return;
   if (!confirm(`Give ${username} a new temporary password? They will be logged out everywhere.`)) return;
   const id = e.target.closest("tr").dataset.id;
   const { password } = await request(`/api/users/${id}/reset-password`, {});
   showPassword(username, password);
-};
+}
 
-$("add").onsubmit = async (e) => {
-  e.preventDefault();
-  const f = e.target;
+async function add(f) {
   const { user, password } = await request("/api/users", { name: f.fullname.value, username: f.username.value, role: f.role.value });
   showPassword(user.username, password);
   f.reset();
   load();
-};
+}
 
-load();
+export function initUsers() {
+  // Errors are already shown on the page; .catch keeps them out of the console.
+  $("u-rows").onchange = (e) => change(e).catch(() => {});
+  $("u-rows").onclick = (e) => resetPassword(e).catch(() => {});
+  $("u-add").onsubmit = (e) => { e.preventDefault(); add(e.target).catch(() => {}); };
+  load();
+}

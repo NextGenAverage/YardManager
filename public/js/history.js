@@ -25,6 +25,13 @@ function describe(e) {
     case "move": return `${t} moved ${place(e.from_spot)} → ${place(e.to_spot)}`;
     case "depart": return `${t} departed from ${place(e.from_spot)}`;
     case "remove": return `${t} removed from ${place(e.from_spot)} (entered by mistake)`;
+    case "link": {
+      const [before, after] = d.trailer_id;
+      return before
+        ? `${t} linked to trailer ID “${esc(after)}” (was “${esc(before)}”)`
+        : `${t} linked to trailer ID “${esc(after)}”`;
+    }
+    case "unlink": return `${t} removed from the trailer register (was “${esc(d.trailer_id[0])}”)`;
   }
   // "edit": details is { field: [old, new] }
   const changes = Object.entries(d).map(([field, [before, after]]) => {

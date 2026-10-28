@@ -28,7 +28,8 @@ function page(file) {
   };
 }
 app.get(["/", "/index.html"], page("index.html"));
-app.get("/users.html", page("users.html"));
+app.get("/manage.html", page("manage.html"));
+app.get("/users.html", (_req, res) => res.redirect("/manage.html#users")); // old address
 app.use(express.static(PUBLIC, { index: false }));
 
 function state() {
@@ -109,6 +110,9 @@ app.post("/api/place", worker, (req, res) => {
     || (!yard.statusExists(status) && "Unknown status.")
     || checkTime(arrivedAt);
   if (err) return res.status(400).json({ error: err });
+  if (auth.atLeast(req.user.role, "operator") && !trailerId && !yard.getTrailer(plate)) {
+    return res.status(400).json({ error: "Trailer ID is required for a new reg. number." });
+  }
   if (!auth.atLeast(req.user.role, "operator")) {
     const here = yard.getPlacements()[spot];
     if (!here || here.plate !== plate || here.trailerId !== trailerId || arrivedAt !== undefined) {
@@ -154,6 +158,32 @@ app.post("/api/visit-times", operator, (req, res) => {
   if (err) return res.status(400).json({ error: err });
   yard.correctTimes({ id, arrivedAt, departedAt, by: who(req) });
   changed(res);
+});
+
+// ---- Trailer register (reg. number -> trailer ID) ----
+
+// Look up one reg. number, e.g. to fill in the trailer ID while typing.
+app.get("/api/trailers/:plate", viewer, (req, res) => {
+  res.json({ trailer: yard.getTrailer(clean(req.params.plate, 20).toUpperCase()) });
+});
+
+// Manage page: search the register.
+app.get("/api/trailers", operator, (req, res) => {
+  res.json(yard.listTrailers(clean(req.query.q, 60)));
+});
+
+// Manage page: add a link or change one.
+app.post("/api/trailers", operator, (req, res) => {
+  const plate = clean(req.body.plate, 20).toUpperCase();
+  const trailerId = clean(req.body.trailerId, 60);
+  if (!plate || !trailerId) return res.status(400).json({ error: "Reg. number and trailer ID are required." });
+  yard.linkTrailer({ plate, trailerId, by: who(req) });
+  changed(res); // the trailer ID of a trailer in the yard may have changed
+});
+
+app.post("/api/trailers/delete", operator, (req, res) => {
+  yard.unlinkTrailer({ plate: clean(req.body.plate, 20).toUpperCase(), by: who(req) });
+  res.json({ ok: true });
 });
 
 // ?trailer=<plate or trailer ID>, ?spot=201, or nothing for the latest changes in the whole yard.

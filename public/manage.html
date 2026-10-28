@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Yard Map: manage</title>
+  <link rel="icon" href="favicon.svg">
+  <link rel="stylesheet" href="css/yard.css">
+  <script type="module" src="js/manage.js"></script>
+</head>
+<body>
+
+  <header class="page-head">
+    <h1>Manage</h1>
+    <a class="btn" href="/">Back to map</a>
+  </header>
+
+  <!-- Tabs: shown according to role (manage.js). Later steps add more here. -->
+  <nav class="tabs" id="tabs">
+    <a href="#trailers" data-tab="trailers" hidden>Trailers</a>
+    <a href="#users" data-tab="users" hidden>Users</a>
+  </nav>
+
+  <p class="page error" id="no-access" hidden>Your role doesn't have access to this page.</p>
+
+  <!-- Trailer register: reg. number -> trailer ID (manage-trailers.js) -->
+  <section class="page" id="tab-trailers" hidden>
+    <p class="intro">
+      Each reg. number (licence plate) is linked to one trailer ID. On the map the
+      trailer ID is filled in from here and can't be changed there.
+    </p>
+    <p class="notice" id="t-notice" hidden></p>
+    <p class="error" id="t-error"></p>
+
+    <form class="add-user" id="t-add">
+      <input name="plate" placeholder="Reg. number" required maxlength="20" autocapitalize="characters">
+      <input name="trailerId" placeholder="Trailer ID" required maxlength="60">
+      <button class="btn pri">Add</button>
+    </form>
+
+    <input class="search" id="t-q" type="search" placeholder="Search reg. number or trailer ID…" autocomplete="off">
+    <p class="count" id="t-count"></p>
+    <div class="table-wrap">
+      <table class="users">
+        <thead>
+          <tr><th>Reg. number</th><th>Trailer ID</th><th>In yard</th><th>Last changed</th><th></th></tr>
+        </thead>
+        <tbody id="t-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Users (admins, manage-users.js) -->
+  <section class="page" id="tab-users" hidden>
+    <!-- Temporary password after adding a user or resetting a password -->
+    <p class="notice" id="u-notice" hidden></p>
+    <p class="error" id="u-error"></p>
+
+    <div class="table-wrap">
+      <table class="users">
+        <thead>
+          <tr><th>Name</th><th>Username</th><th>Role</th><th>Active</th><th>Last login</th><th></th></tr>
+        </thead>
+        <tbody id="u-rows"></tbody>
+      </table>
+    </div>
+
+    <h2 class="page-h2">Add user</h2>
+    <form class="add-user" id="u-add">
+      <input name="fullname" placeholder="Full name" required maxlength="60">
+      <input name="username" placeholder="Username" required pattern="[A-Za-z0-9._\-]{2,32}" autocapitalize="none">
+      <select name="role" id="u-add-role"></select>
+      <button class="btn pri">Add</button>
+    </form>
+
+    <h2 class="page-h2">Roles</h2>
+    <ul class="role-help">
+      <li><b>Viewer</b>: sees the map and history, changes nothing (e.g. a screen in the office).</li>
+      <li><b>Worker</b>: can also change status, damaged and note on trailers in the yard.</li>
+      <li><b>Operator</b>: can also add, move, depart and remove trailers, correct times and manage the trailer register.</li>
+      <li><b>Admin</b>: can also manage users.</li>
+    </ul>
+  </section>
+
+</body>
+</html>

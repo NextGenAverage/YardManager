@@ -110,6 +110,19 @@ const migrations = [
   CREATE INDEX visits_trailer_id ON visits(trailer_id COLLATE NOCASE);
   CREATE INDEX events_plate ON events(plate);
   `,
+  `
+  -- Trailer register: each reg. number is linked to one trailer ID. Filled when
+  -- an operator enters a new reg. number, or on the Manage page (later: CSV import).
+  CREATE TABLE trailers (
+    plate      TEXT PRIMARY KEY,
+    trailer_id TEXT NOT NULL,
+    updated_at INTEGER NOT NULL,
+    updated_by TEXT
+  );
+  CREATE INDEX trailers_trailer_id ON trailers(trailer_id COLLATE NOCASE);
+  INSERT OR IGNORE INTO trailers (plate, trailer_id, updated_at)
+    SELECT plate, trailer_id, arrived_at FROM visits WHERE trailer_id != '' ORDER BY arrived_at DESC;
+  `,
 ];
 
 function migrate() {
@@ -209,10 +222,62 @@ function changes(v, next) {
 class YardError extends Error {}
 const GONE = "That trailer has already been moved or removed.";
 
+// ---- Trailer register: reg. number -> trailer ID ----
+
+const trailerRow = (r) => r && {
+  plate: r.plate, trailerId: r.trailer_id, updatedAt: r.updated_at, updatedBy: r.updated_by, spot: r.spot_id ?? null,
+};
+
+function getTrailer(plate) {
+  return trailerRow(db.prepare("SELECT * FROM trailers WHERE plate = ?").get(plate)) ?? null;
+}
+
+// Search the register by reg. number or trailer ID (part of either).
+// Also tells where each trailer is standing, if it is in the yard.
+function listTrailers(q = "", limit = 200) {
+  const where = q ? "WHERE t.plate LIKE ? OR t.trailer_id LIKE ?" : "";
+  const args = q ? [`%${q}%`, `%${q}%`] : [];
+  const rows = db.prepare(`SELECT t.*, v.spot_id FROM trailers t
+    LEFT JOIN visits v ON v.plate = t.plate AND v.departed_at IS NULL
+    ${where} ORDER BY t.plate LIMIT ?`).all(...args, limit);
+  const total = db.prepare(`SELECT COUNT(*) n FROM trailers t ${where}`).get(...args).n;
+  return { trailers: rows.map(trailerRow), total };
+}
+
+const upsertTrailer = db.prepare(`INSERT INTO trailers (plate, trailer_id, updated_at, updated_by) VALUES (?, ?, ?, ?)
+  ON CONFLICT (plate) DO UPDATE SET trailer_id = excluded.trailer_id, updated_at = excluded.updated_at, updated_by = excluded.updated_by`);
+
+// Link a reg. number to a trailer ID (new link or a change). A trailer of that
+// reg. number standing in the yard gets the new trailer ID too.
+const linkTrailer = db.transaction(({ plate, trailerId, by }) => {
+  const old = getTrailer(plate);
+  if (old?.trailerId === trailerId) return;
+  upsertTrailer.run(plate, trailerId, Date.now(), by || null);
+  const v = activePlate.get(plate);
+  if (v) db.prepare("UPDATE visits SET trailer_id = ? WHERE id = ?").run(trailerId, v.id);
+  log("link", { id: v?.id ?? null, plate }, { by, from: v?.spot_id ?? null, details: { trailer_id: [old?.trailerId ?? "", trailerId] } });
+});
+
+const unlinkTrailer = db.transaction(({ plate, by }) => {
+  const old = getTrailer(plate);
+  if (!old) throw new YardError("That reg. number isn't in the register.");
+  db.prepare("DELETE FROM trailers WHERE plate = ?").run(plate);
+  log("unlink", { id: null, plate }, { by, details: { trailer_id: [old.trailerId, ""] } });
+});
+
 // Save the trailer on a spot (new trailer, or edit of the one already there).
 // If that plate is already elsewhere in the yard the trailer is moved here,
 // keeping its arrival time, and any other trailer on this spot departs.
+// The register decides the trailer ID of a known reg. number; a new reg. number
+// is added to the register with the trailer ID given.
 const placeTrailer = db.transaction(({ spot, plate, trailerId, status, note, damaged, arrivedAt, by }) => {
+  const link = getTrailer(plate);
+  if (link && trailerId && link.trailerId !== trailerId) {
+    throw new YardError(`${plate} is linked to trailer ID ${link.trailerId}. Change the link on the Manage page.`);
+  }
+  if (link) trailerId = link.trailerId;
+  else if (trailerId) upsertTrailer.run(plate, trailerId, Date.now(), by || null);
+
   const here = activeAt.get(spot);
   let v = activePlate.get(plate);
   if (v && here && v.id !== here.id) departVisit(here, by);
@@ -294,4 +359,5 @@ module.exports = {
   db, YardError,
   getStatuses, getSections, getPlacements, spotExists, statusExists, getHistory,
   placeTrailer, moveTrailer, departTrailer, removeTrailer, correctTimes,
+  getTrailer, listTrailers, linkTrailer, unlinkTrailer,
 };

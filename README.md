@@ -32,14 +32,14 @@ npm run create-admin -- <username> "<Full name>"
 ```
 
 It prints a temporary password; the admin chooses their own at first login.
-After that, admins add users on the **Users** page (link in the map header).
+After that, admins add users on the **Manage** page, Users tab (link in the map header).
 New users also get a temporary password to change at first login.
 
 | Role | Can |
 |---|---|
 | Viewer | See the map and history (e.g. a screen in the office) |
 | Worker | Also change status, damaged and note on trailers in the yard |
-| Operator | Also add, move, depart and remove trailers, and correct times |
+| Operator | Also add, move, depart and remove trailers, correct times, and manage the trailer register |
 | Admin | Also manage users |
 
 - Logins last 12 hours (one shift); viewer logins last 30 days and renew
@@ -49,6 +49,18 @@ New users also get a temporary password to change at first login.
 - 5 wrong passwords lock that username for 5 minutes.
 - **Locked out?** Run `npm run create-admin -- <username>` for an existing
   user: they become an active admin with a new temporary password.
+
+## Trailers: reg. number and trailer ID
+
+The map shows each trailer's **reg. number** (licence plate). Each reg. number
+is linked to one **trailer ID** (the carrier's longer trailer name) in the
+trailer register:
+
+- Typing a known reg. number in the edit sheet fills in its trailer ID, locked.
+- For a new reg. number, operators must enter the trailer ID; saving links them.
+- Links are changed or deleted on the **Manage** page, Trailers tab. Every
+  change is in the history with who made it.
+- Search and history find trailers by reg. number or trailer ID.
 
 ## Code layout
 
@@ -71,7 +83,9 @@ New users also get a temporary password to change at first login.
 | `public/js/store.js` | The yard state shared by the modules above |
 | `public/js/util.js` | Small helpers (escaping, time formatting) |
 | `public/login.html`, `public/js/login.js` | Login and choosing a new password |
-| `public/users.html`, `public/js/users.js` | User admin page |
+| `public/manage.html`, `public/js/manage.js` | Manage page (operators/admins): picks the tabs |
+| `public/js/manage-trailers.js` | Manage > Trailers: the trailer register |
+| `public/js/manage-users.js` | Manage > Users (admins) |
 
 The page uses plain JavaScript modules (`import` / `export`), so there is no
 build step: edit a file and reload the browser.

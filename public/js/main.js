@@ -62,7 +62,7 @@ if (!me) {
 }
 ui.user = me.user;
 $("me").textContent = `${me.user.name} (${me.user.role[0].toUpperCase() + me.user.role.slice(1)})`;
-$("users-link").hidden = !can("admin");
+$("manage-link").hidden = !can("operator");
 $("b-logout").onclick = async () => {
   await fetch("/api/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
   location.href = "/login.html";
