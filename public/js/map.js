@@ -3,6 +3,7 @@
 import { $, esc, dwell, showMsg } from "./util.js";
 import { yard, ui, statusStyle, carrierBadge } from "./store.js";
 import { refit, setMapWidth } from "./zoom.js";
+import { layoutSize } from "./geometry.js";
 
 export function renderLegend() {
   $("legend-items").innerHTML = Object.entries(yard.statuses)
@@ -71,38 +72,14 @@ export function render() {
   }
 }
 
-// The outer edges of a section in px: title, rows of spots, door strip.
-function sectionBox(s) {
-  const rows = Math.ceil(s.spots.length / s.cols);
-  const sideways = s.o === "e" || s.o === "w";
-  const rowHeight = sideways ? s.th || 40 : s.sh + (s.kind === "door" ? 28 : 0);
-  return { right: s.x + s.cols * s.cw + 6, bottom: s.y + (s.title ? 18 : 0) + rows * rowHeight + 6 };
-}
-
-// The map is as wide and tall as its sections and buildings reach; the street
-// strip as tall as its sections. The zoom fits the map's width to the screen.
+// The map and the street strip are as big as the layout needs; the zoom fits
+// the map's width to the screen.
 function sizeScenes() {
-  let right = 0, bottom = 0, streetRight = 0, streetBottom = 0;
-  for (const s of yard.sections) {
-    if (s.kind === "pool") continue;
-    const box = sectionBox(s);
-    if (s.kind === "street") {
-      streetRight = Math.max(streetRight, box.right);
-      streetBottom = Math.max(streetBottom, box.bottom);
-    } else {
-      right = Math.max(right, box.right);
-      bottom = Math.max(bottom, box.bottom);
-    }
-  }
-  for (const b of yard.buildings) {
-    right = Math.max(right, b.x + b.w);
-    bottom = Math.max(bottom, b.y + b.h);
-  }
-  const width = Math.max(800, right + 20, streetRight + 20);
+  const { width, height, streetHeight } = layoutSize(yard.sections, yard.buildings);
   setMapWidth(width);
-  for (const [id, height] of [["scene", Math.max(600, bottom + 20)], ["street-scene", streetBottom + 10]]) {
+  for (const [id, h] of [["scene", height], ["street-scene", streetHeight]]) {
     $(id).style.width = width + "px";
-    $(id).style.height = height + "px";
+    $(id).style.height = h + "px";
   }
 }
 

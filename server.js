@@ -5,15 +5,17 @@ const yard = require("./db");
 const auth = require("./auth");
 const authRoutes = require("./auth-routes");
 const { readTrailerCsv, normalizePlate, cleanTrailerId } = require("./csv-import");
+const { checkLayout } = require("./layout");
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, "public");
 
 const app = express();
 app.set("trust proxy", "loopback"); // correct client address and https when behind a local reverse proxy
-// Read JSON request bodies. The CSV import route reads its own, larger ones.
+// Read JSON request bodies. The CSV import and layout routes read their own, larger ones.
 const smallJson = express.json({ limit: "200kb" });
-app.use((req, res, next) => (req.path === "/api/trailers/import" ? next() : smallJson(req, res, next)));
+const ownBodyParser = ["/api/trailers/import", "/api/layout"];
+app.use((req, res, next) => (ownBodyParser.includes(req.path) ? next() : smallJson(req, res, next)));
 app.use(auth.loadUser);
 
 // Changes must be sent as JSON. Browsers can't send JSON to another site
@@ -236,9 +238,45 @@ app.post("/api/trailers/import", express.json({ limit: "10mb" }), operator, (req
   res.json({ summary, errors, warnings });
 });
 
+// ---- Map editor (admins) ----
+
+const admin = auth.requireRole("admin");
+
+// The layout to edit, plus what the editor needs to show: statuses, and which
+// spots have trailers (those can't be removed).
+app.get("/api/layout", admin, (_req, res) => {
+  const occupied = Object.fromEntries(Object.entries(yard.getPlacements()).map(([spot, t]) => [spot, t.plate]));
+  res.json({ ...yard.getLayout(), statuses: yard.getStatuses().map((s) => s.name), occupied });
+});
+
+app.post("/api/layout", express.json({ limit: "1mb" }), admin, (req, res) => {
+  const { layout, error } = checkLayout(req.body, {
+    statuses: yard.getStatuses().map((s) => s.name),
+    placements: yard.getPlacements(),
+  });
+  if (error) return res.status(400).json({ error });
+  yard.saveLayout(layout, who(req));
+  changed(res);
+});
+
+app.get("/api/layout/versions", admin, (_req, res) => res.json({ versions: yard.listLayoutVersions() }));
+
+// Restore an earlier layout (the current one is kept as a version too).
+app.post("/api/layout/restore", admin, (req, res) => {
+  const old = yard.getLayoutVersion(Number(req.body.id));
+  if (!old) return res.status(404).json({ error: "That version doesn't exist." });
+  const { layout, error } = checkLayout(old, {
+    statuses: yard.getStatuses().map((s) => s.name),
+    placements: yard.getPlacements(),
+  });
+  if (error) return res.status(400).json({ error });
+  yard.saveLayout(layout, who(req));
+  changed(res);
+});
+
 // ---- Carriers (admins) ----
 
-app.post("/api/carriers", auth.requireRole("admin"), (req, res) => {
+app.post("/api/carriers", admin, (req, res) => {
   const code = clean(req.body.code, 10).toUpperCase();
   const name = clean(req.body.name, 40);
   const color = clean(req.body.color, 7);
@@ -250,7 +288,7 @@ app.post("/api/carriers", auth.requireRole("admin"), (req, res) => {
   changed(res);
 });
 
-app.post("/api/carriers/delete", auth.requireRole("admin"), (req, res) => {
+app.post("/api/carriers/delete", admin, (req, res) => {
   yard.deleteCarrier(clean(req.body.code, 10).toUpperCase());
   changed(res);
 });

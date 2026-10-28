@@ -211,6 +211,16 @@ const migrations = [
       JSON.stringify(["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"]),
       JSON.stringify({ o: "e", x: 10, y: 6, cols: 8, cw: 190, sh: 190, th: 56 }));
   },
+  `
+  -- Map editor: each saved layout keeps a copy of the one it replaced, so an
+  -- admin can restore it.
+  CREATE TABLE layout_versions (
+    id       INTEGER PRIMARY KEY,
+    saved_at INTEGER NOT NULL,
+    saved_by TEXT,
+    layout   TEXT NOT NULL      -- JSON: { sections: [...], buildings: [...] }
+  );
+  `,
 ];
 
 function migrate() {
@@ -271,6 +281,40 @@ function getSections() {
     spots: JSON.parse(s.spots),
     ...JSON.parse(s.geometry),
   }));
+}
+
+// ---- Map editor: replace the whole layout, keep the old one as a version ----
+
+const getLayout = () => ({
+  sections: getSections().map(({ id, ...s }) => s),
+  buildings: getBuildings(),
+});
+
+// layout: { sections, buildings }, already checked (layout.js).
+const saveLayout = db.transaction(({ sections, buildings }, by) => {
+  db.prepare("INSERT INTO layout_versions (saved_at, saved_by, layout) VALUES (?, ?, ?)")
+    .run(Date.now(), by || null, JSON.stringify(getLayout()));
+  db.prepare("DELETE FROM sections").run();
+  db.prepare("DELETE FROM buildings").run();
+  const section = db.prepare(`INSERT INTO sections (sort, title, kind, default_status, noun, spots, geometry)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`);
+  sections.forEach((s, i) => {
+    const { o, x, y, cols, cw, sh, th } = s;
+    section.run(i, s.title || null, s.kind, s.defaultStatus, s.noun, JSON.stringify(s.spots),
+      JSON.stringify({ o, x, y, cols, cw, sh, th }));
+  });
+  const building = db.prepare("INSERT INTO buildings (sort, label, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?)");
+  buildings.forEach((b, i) => building.run(i, b.label || null, b.x, b.y, b.w, b.h));
+});
+
+function listLayoutVersions() {
+  return db.prepare("SELECT id, saved_at, saved_by FROM layout_versions ORDER BY id DESC LIMIT 30").all()
+    .map((v) => ({ id: v.id, savedAt: v.saved_at, savedBy: v.saved_by }));
+}
+
+function getLayoutVersion(id) {
+  const v = db.prepare("SELECT layout FROM layout_versions WHERE id = ?").get(id);
+  return v ? JSON.parse(v.layout) : null;
 }
 
 // Current yard: { spotId: { plate, trailerId, carrier, status, note, damaged, since } }
@@ -495,7 +539,8 @@ function getHistory({ trailer, spot, limit = 200 }) {
 
 module.exports = {
   db, YardError,
-  getStatuses, getSections, getBuildings, getPlacements, spotExists, statusExists, getHistory,
+  getStatuses, getSections, getBuildings, getPlacements,
+  getLayout, saveLayout, listLayoutVersions, getLayoutVersion, spotExists, statusExists, getHistory,
   placeTrailer, moveTrailer, departTrailer, removeTrailer, correctTimes,
   getCarriers, carrierExists, saveCarrier, deleteCarrier,
   getTrailer, listTrailers, linkTrailer, unlinkTrailer, importTrailers,

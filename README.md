@@ -40,7 +40,7 @@ New users also get a temporary password to change at first login.
 | Viewer | See the map and history (e.g. a screen in the office) |
 | Worker | Also change status, damaged and note on trailers in the yard |
 | Operator | Also add, move, depart and remove trailers, correct times, and manage the trailer register |
-| Admin | Also manage users and carriers |
+| Admin | Also manage users, carriers and the map layout |
 
 - Logins last 12 hours (one shift); viewer logins last 30 days and renew
   while in use, so a wall screen stays logged in.
@@ -85,6 +85,22 @@ carrier), with "set all to skip / first line / last line" for many at once. The 
 listed under *Check* (often a typo in one of the reg. numbers). Files saved by
 Excel in UTF-8 or the older Windows encoding both work.
 
+## Changing the yard layout (map editor)
+
+Admins change the map on **Manage > Map**: select a section (a row of doors or
+a block of spots) or a building, drag it or use the arrow keys, and edit its
+details on the right (spots, direction, sizes, default status). **+ Section**
+and **+ Building** add new ones. Nothing changes for others until **Save
+layout**; then every open map updates.
+
+The server checks the layout before saving (`layout.js`): spot names must be
+unique, and a spot with a trailer on it can't disappear or be renamed (move the
+trailer first). Each save keeps the layout it replaced; **Earlier layouts**
+lists them with a *Restore* button.
+
+Section types: *Doors*, *Parking*, *Unassigned* (shown in the side panel next
+to the map) and *Street parking* (shown below the gate).
+
 ## Code layout
 
 | Path | What it is |
@@ -92,10 +108,11 @@ Excel in UTF-8 or the older Windows encoding both work.
 | `server.js` | Web server and the yard `/api/...` endpoints, with the role each needs |
 | `auth.js` | Passwords, sessions, roles and user accounts |
 | `auth-routes.js` | Login, logout, password change and the admin's user endpoints |
+| `layout.js` | Checks a layout from the map editor before it is saved |
 | `csv-import.js` | Reads the CSV trailer list (columns, separators, checks) |
 | `scripts/create-admin.js` | Creates the first admin / recovers admin access |
 | `db.js` | SQLite schema, upgrades (`migrations`) and yard queries |
-| `default-layout.js` | Starting yard layout, copied into the database on first run |
+| `default-layout.js` | Starting yard layout (sections and buildings), copied into the database on first run |
 | `public/index.html` | The yard map page: markup only (started as the `yard-lot3.html` prototype) |
 | `public/css/yard.css` | All page styles, grouped by part of the page |
 | `public/js/main.js` | Starts the page: taps on spots, moving trailers, keyboard, live updates |
@@ -109,6 +126,8 @@ Excel in UTF-8 or the older Windows encoding both work.
 | `public/login.html`, `public/js/login.js` | Login and choosing a new password |
 | `public/manage.html`, `public/js/manage.js` | Manage page (operators/admins): picks the tabs |
 | `public/js/manage-trailers.js` | Manage > Trailers: the trailer register |
+| `public/js/manage-map.js` | Manage > Map: the map editor (admins) |
+| `public/js/geometry.js` | Layout sizes shared by the map and the editor |
 | `public/js/manage-carriers.js` | Manage > Carriers (admins) |
 | `public/js/manage-users.js` | Manage > Users (admins) |
 

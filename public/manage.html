@@ -18,6 +18,7 @@
   <!-- Tabs: shown according to role (manage.js). Later steps add more here. -->
   <nav class="tabs" id="tabs">
     <a href="#trailers" data-tab="trailers" hidden>Trailers</a>
+    <a href="#map" data-tab="map" hidden>Map</a>
     <a href="#carriers" data-tab="carriers" hidden>Carriers</a>
     <a href="#users" data-tab="users" hidden>Users</a>
   </nav>
@@ -63,6 +64,37 @@
         <tbody id="t-rows"></tbody>
       </table>
     </div>
+  </section>
+
+  <!-- Map editor (admins, manage-map.js) -->
+  <section class="page wide" id="tab-map" hidden>
+    <p class="intro">
+      Click a section or building to select it. Drag it, or move it with the arrow keys (Shift: 10 px).
+      Changes are a draft until you press <b>Save layout</b>. Spots with a trailer on them (marked red)
+      can't be removed or renamed.
+    </p>
+    <p class="notice" id="m-notice" hidden></p>
+    <p class="error" id="m-error"></p>
+    <div class="editor-bar">
+      <button class="btn" id="m-add-section">+ Section</button>
+      <button class="btn" id="m-add-building">+ Building</button>
+      <span class="grow" id="m-dirty"></span>
+      <button class="btn" id="m-discard">Discard changes</button>
+      <button class="btn pri" id="m-save">Save layout</button>
+    </div>
+    <div class="editor">
+      <div class="editor-canvas lot" id="m-wrap">
+        <div class="scene" id="m-scene"></div>
+        <div class="street"><div class="scene street-scene" id="m-street"></div></div>
+      </div>
+      <aside class="editor-panel" id="m-panel"></aside>
+    </div>
+    <h2 class="page-h2">Side panel sections (Unassigned)</h2>
+    <p class="intro">These are shown beside the map, not on it. Click to edit.</p>
+    <div id="m-pool" class="pool-list"></div>
+    <h2 class="page-h2">Earlier layouts</h2>
+    <p class="intro">Every save keeps the layout it replaced.</p>
+    <ul id="m-versions" class="plain"></ul>
   </section>
 
   <!-- Carriers (admins, manage-carriers.js) -->
@@ -112,7 +144,7 @@
       <li><b>Viewer</b>: sees the map and history, changes nothing (e.g. a screen in the office).</li>
       <li><b>Worker</b>: can also change status, damaged and note on trailers in the yard.</li>
       <li><b>Operator</b>: can also add, move, depart and remove trailers, correct times and manage the trailer register.</li>
-      <li><b>Admin</b>: can also manage users and carriers.</li>
+      <li><b>Admin</b>: can also manage users, carriers and the map layout.</li>
     </ul>
   </section>
 
