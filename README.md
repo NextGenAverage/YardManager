@@ -68,7 +68,7 @@ ID** (the carrier's longer trailer name) and carrier in the trailer register:
 ### Importing the trailer list (CSV)
 
 Manage > Trailers > *Import from CSV file*. The file needs the columns
-**Supplier** (carrier code or name), **Trailer ID** and **Reg**, in any order;
+**Car** / Supplier (carrier code or name), **Ilu** / Trailer ID and **Reg**, in any order;
 other columns are ignored. Comma, semicolon (Norwegian Excel) and tab separated
 files work; in Excel use *Save as → CSV*. Other accepted header names are listed
 at the top of `csv-import.js`.
@@ -77,6 +77,12 @@ The import first shows a preview (new, changed, unchanged, skipped rows and
 why); nothing is saved until you press *Import*. Reg. numbers that are not in
 the file are kept. Rows with an unknown carrier are skipped: add the carrier on
 Manage > Carriers (admins) and import again.
+
+A reg. number listed more than once with different details (e.g. under both INT
+and DSV, or with two trailer IDs) is skipped and listed, rather than guessing
+which line is right. The same trailer ID on two reg. numbers is imported but
+listed under *Check* (often a typo in one of the reg. numbers). Files saved by
+Excel in UTF-8 or the older Windows encoding both work.
 
 ## Code layout
 

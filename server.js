@@ -195,7 +195,7 @@ app.post("/api/trailers/delete", operator, (req, res) => {
 // CSV import. First called with apply: false to preview what would change,
 // then with apply: true to save. Rows with errors are skipped.
 app.post("/api/trailers/import", express.json({ limit: "10mb" }), operator, (req, res) => {
-  const { rows, errors, warnings } = readTrailerCsv(String(req.body.csv ?? ""), yard.getCarriers());
+  const { rows, errors, warnings, skipped } = readTrailerCsv(String(req.body.csv ?? ""), yard.getCarriers());
   const added = [], changes = [];
   let unchanged = 0;
   for (const r of rows) {
@@ -205,7 +205,7 @@ app.post("/api/trailers/import", express.json({ limit: "10mb" }), operator, (req
       changes.push({ ...r, oldTrailerId: old.trailerId, oldCarrier: old.carrier });
     } else unchanged++;
   }
-  const summary = { added: added.length, changed: changes.length, unchanged, skipped: errors.length };
+  const summary = { added: added.length, changed: changes.length, unchanged, skipped };
   if (!req.body.apply) {
     return res.json({ summary, examples: { added: added.slice(0, 20), changes: changes.slice(0, 50) }, errors, warnings });
   }

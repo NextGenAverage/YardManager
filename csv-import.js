@@ -1,23 +1,29 @@
 // Reads the integration team's trailer list (CSV) for the trailer register.
 //
 // Expected columns (in any order, other columns are ignored):
-//   carrier    - "Supplier", "Carrier", "Leverandør": a carrier code (DSV, INT) or name (Bring)
-//   trailer ID - "Trailer ID", "Trailer", "Trailer name"
+//   carrier    - "Car", "Supplier", "Carrier", "Leverandør": a carrier code (DSV, INT) or name (Bring)
+//   trailer ID - "Ilu", "Trailer ID", "Trailer", "Trailer name"
 //   reg.       - "Reg", "Reg.nr", "Registration", "Licence plate", "Plate", "Kjennemerke"
 // Comma, semicolon (Norwegian Excel) and tab separated files all work.
+// The browser decodes the file (UTF-8 or Excel's older Windows encoding) before sending it.
 
 // Header names are compared lowercase with only a-z and 0-9 kept, so
 // "Reg.nr" -> "regnr", "Trailer ID" -> "trailerid", "Leverandør" -> "leverandr".
 const COLUMNS = {
-  carrier: ["supplier", "carrier", "leverandr", "transportr", "company", "firma"],
-  trailerId: ["trailerid", "trailer", "trailername", "hengerid", "henger"],
+  carrier: ["car", "supplier", "carrier", "leverandr", "transportr", "company", "firma"],
+  trailerId: ["ilu", "iluno", "ilucode", "trailerid", "trailer", "trailername", "hengerid", "henger"],
   plate: ["reg", "regnr", "regno", "registration", "registrationnumber", "licenceplate", "licenseplate",
     "plate", "skilt", "kjennemerke"],
 };
 const simplify = (h) => h.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-// Reg. numbers are compared without spaces and in capitals: "ab 12345" -> "AB12345".
-const normalizePlate = (s) => String(s ?? "").toUpperCase().replace(/\s+/g, "").slice(0, 20);
+// Reg. numbers are compared in capitals with only letters and digits:
+// "ab 12345" -> "AB12345". This also drops stray characters such as the
+// non-breaking spaces Excel sometimes leaves after a value.
+const normalizePlate = (s) => String(s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20);
+
+// Trailer IDs: trimmed (including non-breaking spaces), unreadable characters removed.
+const cleanTrailerId = (s) => String(s ?? "").replace(/�/g, "").trim().slice(0, 60);
 
 // Split CSV text into rows of fields. Handles quoted fields ("a;b", "say ""hi""")
 // and line breaks inside quotes.
@@ -47,11 +53,17 @@ function parseCsv(text) {
 }
 
 // Turn the CSV into register rows. carriers: [{ code, name }].
-// Returns { rows: [{ line, plate, trailerId, carrier }], errors: [...], warnings: [...] }
-// where errors are rows that can't be imported (they are skipped).
+// Returns {
+//   rows:     [{ line, plate, trailerId, carrier }]  rows that can be imported
+//   errors:   [...]  why rows were skipped
+//   warnings: [...]  imported, but worth checking
+//   skipped:  number of lines skipped
+// }
+// A reg. number listed more than once with different trailer ID or carrier is
+// a conflict: all its lines are skipped rather than guessing which is right.
 function readTrailerCsv(text, carriers) {
   const [header, ...lines] = parseCsv(text);
-  if (!header) return { rows: [], errors: ["The file is empty."], warnings: [] };
+  if (!header) return { rows: [], errors: ["The file is empty."], warnings: [], skipped: 0 };
 
   const index = {};
   const names = header.map(simplify);
@@ -62,7 +74,7 @@ function readTrailerCsv(text, carriers) {
   if (missing.length) {
     const label = { carrier: "supplier/carrier", trailerId: "trailer ID", plate: "reg. number" };
     return {
-      rows: [], warnings: [],
+      rows: [], warnings: [], skipped: lines.length,
       errors: [`Couldn't find the column(s) ${missing.map((k) => label[k]).join(", ")}. `
         + `Columns in the file: ${header.join(", ")}.`],
     };
@@ -75,26 +87,48 @@ function readTrailerCsv(text, carriers) {
     carrierCode[c.name.toUpperCase()] = c.code;
   }
 
-  const rows = [], errors = [], warnings = [];
-  const seenPlate = new Map(), seenTrailerId = new Map();
+  const errors = [], warnings = [];
+  let skipped = 0;
+  const byPlate = new Map(); // plate -> [row, ...] in file order
   lines.forEach((fields, i) => {
     const line = i + 2; // line 1 is the header
     const plate = normalizePlate(fields[index.plate]);
-    const trailerId = String(fields[index.trailerId] ?? "").trim().slice(0, 60);
+    const trailerId = cleanTrailerId(fields[index.trailerId]);
     const carrierText = String(fields[index.carrier] ?? "").trim();
     const carrier = carrierText ? carrierCode[carrierText.toUpperCase()] : null;
-
-    if (!plate) return errors.push(`Line ${line}: no reg. number.`);
-    if (!trailerId) return errors.push(`Line ${line}: ${plate} has no trailer ID.`);
-    if (carrierText && !carrier) return errors.push(`Line ${line}: unknown carrier "${carrierText}" for ${plate}.`);
-    if (seenPlate.has(plate)) return errors.push(`Line ${line}: ${plate} is also on line ${seenPlate.get(plate)}; only the first is used.`);
-    seenPlate.set(plate, line);
-    const other = seenTrailerId.get(trailerId.toUpperCase());
-    if (other) warnings.push(`Line ${line}: trailer ID ${trailerId} is also used by ${other}.`);
-    else seenTrailerId.set(trailerId.toUpperCase(), plate);
-    rows.push({ line, plate, trailerId, carrier });
+    let problem = null;
+    if (!plate) problem = `Line ${line}: no reg. number.`;
+    else if (!trailerId) problem = `Line ${line}: ${plate} has no trailer ID.`;
+    else if (carrierText && !carrier) problem = `Line ${line}: unknown carrier "${carrierText}" for ${plate}.`;
+    if (problem) {
+      errors.push(problem);
+      skipped++;
+      return;
+    }
+    if (!byPlate.has(plate)) byPlate.set(plate, []);
+    byPlate.get(plate).push({ line, plate, trailerId, carrier });
   });
-  return { rows, errors, warnings };
+
+  const rows = [];
+  for (const [plate, list] of byPlate) {
+    const differs = list.some((r) => r.trailerId !== list[0].trailerId || r.carrier !== list[0].carrier);
+    if (differs) {
+      errors.push(`${plate} is listed ${list.length} times with different details (`
+        + list.map((r) => `line ${r.line}: ${r.trailerId} ${r.carrier || "–"}`).join("; ") + "). Skipped; fix the list and import again.");
+      skipped += list.length;
+    } else {
+      rows.push(list[0]); // exact duplicates count once
+    }
+  }
+
+  // The same trailer ID on several reg. numbers is often a typo in a reg. number.
+  const plateOfId = new Map();
+  for (const r of rows) {
+    const key = r.trailerId.toUpperCase();
+    if (plateOfId.has(key)) warnings.push(`Trailer ID ${r.trailerId} is used by both ${plateOfId.get(key)} and ${r.plate}.`);
+    else plateOfId.set(key, r.plate);
+  }
+  return { rows, errors, warnings, skipped };
 }
 
 module.exports = { parseCsv, readTrailerCsv, normalizePlate };

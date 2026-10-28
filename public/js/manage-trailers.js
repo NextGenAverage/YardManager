@@ -119,8 +119,19 @@ function previewHtml(p) {
   return h;
 }
 
+// Excel saves CSV either as UTF-8 or in the older Windows encoding (e.g. "ø"
+// as one byte). Use UTF-8 if the file is valid UTF-8, otherwise Windows-1252.
+async function readFileText(file) {
+  const bytes = await file.arrayBuffer();
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder("windows-1252").decode(bytes);
+  }
+}
+
 async function previewFile(file) {
-  csvText = await file.text();
+  csvText = await readFileText(file);
   $("t-preview").innerHTML = "<p>Reading…</p>";
   try {
     $("t-preview").innerHTML = previewHtml(await request("/api/trailers/import", { csv: csvText, apply: false }));
