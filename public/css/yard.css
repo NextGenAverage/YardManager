@@ -1206,3 +1206,50 @@ a.btn {
   flex: 0 1 180px;
   min-width: 120px;
 }
+
+/* Import conflicts: one box per reg. number with the choices */
+.conflicts {
+  display: grid;
+  gap: 8px;
+}
+
+.conflict {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.conflict legend {
+  padding: 0 4px;
+}
+
+.conflict legend small {
+  margin-left: 6px;
+  font-size: 12px;
+  color: var(--mute);
+}
+
+.conflict label {
+  display: block;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+.conflict-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 0 22px;
+}
+
+.conflict-edit .cell-input {
+  flex: 1;
+  width: auto;
+}
+
+.bulk {
+  margin: 4px 0 8px;
+  font-size: 14px;
+}

@@ -4,7 +4,7 @@ const express = require("express");
 const yard = require("./db");
 const auth = require("./auth");
 const authRoutes = require("./auth-routes");
-const { readTrailerCsv, normalizePlate } = require("./csv-import");
+const { readTrailerCsv, normalizePlate, cleanTrailerId } = require("./csv-import");
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, "public");
@@ -193,21 +193,41 @@ app.post("/api/trailers/delete", operator, (req, res) => {
 });
 
 // CSV import. First called with apply: false to preview what would change,
-// then with apply: true to save. Rows with errors are skipped.
+// then with apply: true to save. Lines with errors are skipped.
+// Conflicts (a reg. number listed with different details) are decided by the
+// user in the preview: resolutions = { PLATE: { trailerId, carrier } } for the
+// ones to import; conflicts not in it are skipped.
 app.post("/api/trailers/import", express.json({ limit: "10mb" }), operator, (req, res) => {
-  const { rows, errors, warnings, skipped } = readTrailerCsv(String(req.body.csv ?? ""), yard.getCarriers());
+  const { rows, conflicts, errors, warnings, skipped } = readTrailerCsv(String(req.body.csv ?? ""), yard.getCarriers());
+  const chosen = req.body.apply ? req.body.resolutions || {} : {};
+  const resolved = [];
+  for (const c of conflicts) {
+    const pick = chosen[c.plate];
+    if (!pick) continue;
+    const trailerId = cleanTrailerId(pick.trailerId);
+    const carrier = clean(pick.carrier, 10) || null;
+    if (!trailerId) return res.status(400).json({ error: `${c.plate}: trailer ID is required.` });
+    if (carrier && !yard.carrierExists(carrier)) return res.status(400).json({ error: `${c.plate}: unknown carrier ${carrier}.` });
+    resolved.push({ plate: c.plate, trailerId, carrier });
+  }
+
   const added = [], changes = [];
   let unchanged = 0;
-  for (const r of rows) {
+  for (const r of [...rows, ...resolved]) {
     const old = yard.getTrailer(r.plate);
     if (!old) added.push(r);
     else if (old.trailerId !== r.trailerId || old.carrier !== r.carrier) {
       changes.push({ ...r, oldTrailerId: old.trailerId, oldCarrier: old.carrier });
     } else unchanged++;
   }
-  const summary = { added: added.length, changed: changes.length, unchanged, skipped };
+  const summary = {
+    added: added.length, changed: changes.length, unchanged, skipped,
+    conflicts: conflicts.length, conflictsResolved: resolved.length,
+  };
   if (!req.body.apply) {
-    return res.json({ summary, examples: { added: added.slice(0, 20), changes: changes.slice(0, 50) }, errors, warnings });
+    // With the trailer currently in the register, so the user sees what a choice replaces.
+    const withRegister = conflicts.slice(0, 500).map((c) => ({ ...c, register: yard.getTrailer(c.plate) }));
+    return res.json({ summary, examples: { added: added.slice(0, 20), changes: changes.slice(0, 50) }, conflicts: withRegister, errors, warnings });
   }
   yard.importTrailers([...added, ...changes].map(({ plate, trailerId, carrier }) => ({ plate, trailerId, carrier })), who(req));
   const s = state();

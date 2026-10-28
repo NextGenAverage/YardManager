@@ -89,13 +89,43 @@ async function add(form) {
 }
 
 // ---- CSV import: read the file, show a preview, import on confirmation ----
+// Conflicts (a reg. number listed more than once with different details) are
+// shown one by one: skip it, use one of its lines, or edit the details by hand.
 
 let csvText = "";
+let conflicts = []; // from the preview: [{ plate, lines: [{ line, trailerId, carrier }], register }]
+
+const describeLink = (trailerId, carrier) => `${esc(trailerId)} · ${esc(carrier || "no carrier")}`;
+
+function conflictHtml(c, i) {
+  const first = c.lines[0];
+  const now = c.register ? `<small>Now in the register: ${describeLink(c.register.trailerId, c.register.carrier)}</small>` : "";
+  return `<fieldset class="conflict" data-i="${i}">
+    <legend><b>${esc(c.plate)}</b> ${now}</legend>
+    <label><input type="radio" name="c${i}" value="skip" checked> Skip</label>
+    ${c.lines.map((l, k) => `<label><input type="radio" name="c${i}" value="line:${k}"> Use line ${l.line}: ${describeLink(l.trailerId, l.carrier)}</label>`).join("")}
+    <label><input type="radio" name="c${i}" value="edit"> Edit:</label>
+    <span class="conflict-edit" hidden>
+      <input class="cell-input" value="${esc(first.trailerId)}" maxlength="60" aria-label="Trailer ID">
+      <select class="cell-select" aria-label="Carrier">${carrierOptions(first.carrier)}</select>
+    </span>
+  </fieldset>`;
+}
 
 function previewHtml(p) {
   const s = p.summary;
   let h = `<p><b>${s.added}</b> new, <b>${s.changed}</b> changed, ${s.unchanged} unchanged`
-    + (s.skipped ? `, <b class="danger-text">${s.skipped} skipped</b> (see below)` : "") + ".</p>";
+    + (s.conflicts ? `, <b>${s.conflicts} conflict${s.conflicts === 1 ? "" : "s"}</b> to decide` : "")
+    + (s.skipped ? `, <b class="danger-text">${s.skipped} skipped</b>` : "") + ".</p>";
+  if (p.conflicts.length) {
+    h += `<h4>Conflicts: these reg. numbers are listed more than once with different details</h4>
+      <p class="bulk">Set all to:
+        <button class="link" data-bulk="skip">Skip</button> ·
+        <button class="link" data-bulk="first">First line</button> ·
+        <button class="link" data-bulk="last">Last line</button>
+      </p>
+      <div class="conflicts">${p.conflicts.map(conflictHtml).join("")}</div>`;
+  }
   if (p.examples.changes.length) {
     h += "<h4>Changes</h4><ul class='plain'>" + p.examples.changes.map((c) =>
       `<li><b>${esc(c.plate)}</b>: ${esc(c.oldTrailerId)} ${esc(c.oldCarrier || "–")} → ${esc(c.trailerId)} ${esc(c.carrier || "–")}</li>`
@@ -111,12 +141,40 @@ function previewHtml(p) {
   if (p.warnings.length) {
     h += "<h4>Check</h4><ul class='plain'>" + p.warnings.map((w) => `<li>${esc(w)}</li>`).join("") + "</ul>";
   }
-  const work = s.added + s.changed;
+  const canImport = s.added + s.changed + s.conflicts > 0;
   h += `<div class="row import-actions">
     <button class="btn" data-import-cancel>Cancel</button>
-    ${work ? `<button class="btn pri" data-import-apply>Import ${work} reg. number${work === 1 ? "" : "s"}</button>` : ""}
+    ${canImport ? `<button class="btn pri" data-import-apply>Import</button>` : ""}
   </div>`;
   return h;
+}
+
+// The user's choice for each conflict: { PLATE: { trailerId, carrier } }; skipped ones are left out.
+function collectResolutions() {
+  const out = {};
+  for (const box of document.querySelectorAll("#t-preview .conflict")) {
+    const c = conflicts[box.dataset.i];
+    const choice = box.querySelector("input[type=radio]:checked").value;
+    if (choice.startsWith("line:")) {
+      const l = c.lines[Number(choice.slice(5))];
+      out[c.plate] = { trailerId: l.trailerId, carrier: l.carrier };
+    } else if (choice === "edit") {
+      out[c.plate] = {
+        trailerId: box.querySelector(".conflict-edit input").value.trim(),
+        carrier: box.querySelector(".conflict-edit select").value || null,
+      };
+    }
+  }
+  return out;
+}
+
+function setAllConflicts(which) {
+  for (const box of document.querySelectorAll("#t-preview .conflict")) {
+    const n = conflicts[box.dataset.i].lines.length;
+    const value = which === "skip" ? "skip" : `line:${which === "first" ? 0 : n - 1}`;
+    box.querySelector(`input[value="${value}"]`).checked = true;
+    box.querySelector(".conflict-edit").hidden = true;
+  }
 }
 
 // Excel saves CSV either as UTF-8 or in the older Windows encoding (e.g. "ø"
@@ -134,21 +192,35 @@ async function previewFile(file) {
   csvText = await readFileText(file);
   $("t-preview").innerHTML = "<p>Reading…</p>";
   try {
-    $("t-preview").innerHTML = previewHtml(await request("/api/trailers/import", { csv: csvText, apply: false }));
+    const p = await request("/api/trailers/import", { csv: csvText, apply: false });
+    conflicts = p.conflicts;
+    $("t-preview").innerHTML = previewHtml(p);
   } catch {
     $("t-preview").innerHTML = "";
   }
 }
 
 async function applyImport() {
-  const r = await request("/api/trailers/import", { csv: csvText, apply: true });
-  notice(`Imported: ${r.summary.added} new, ${r.summary.changed} changed${r.summary.skipped ? `, ${r.summary.skipped} skipped` : ""}.`);
+  const resolutions = collectResolutions();
+  const empty = Object.entries(resolutions).find(([, r]) => !r.trailerId);
+  if (empty) {
+    $("t-error").textContent = `${empty[0]}: enter a trailer ID or choose another option.`;
+    return;
+  }
+  const r = await request("/api/trailers/import", { csv: csvText, apply: true, resolutions });
+  const s = r.summary;
+  const skippedConflicts = s.conflicts - s.conflictsResolved;
+  notice(`Imported: ${s.added} new, ${s.changed} changed`
+    + (s.conflictsResolved ? ` (incl. ${s.conflictsResolved} conflict${s.conflictsResolved === 1 ? "" : "s"} you decided)` : "")
+    + (skippedConflicts ? `, ${skippedConflicts} conflict${skippedConflicts === 1 ? "" : "s"} skipped` : "")
+    + (s.skipped ? `, ${s.skipped} line${s.skipped === 1 ? "" : "s"} skipped` : "") + ".");
   cancelImport();
   load();
 }
 
 function cancelImport() {
   csvText = "";
+  conflicts = [];
   $("t-file").value = "";
   $("t-preview").innerHTML = "";
 }
@@ -177,6 +249,12 @@ export async function initTrailers() {
   $("t-preview").onclick = (e) => {
     if (e.target.matches("[data-import-apply]")) applyImport().catch(() => {});
     if (e.target.matches("[data-import-cancel]")) cancelImport();
+    if (e.target.dataset.bulk) setAllConflicts(e.target.dataset.bulk);
+  };
+  // Show the Trailer ID / carrier fields only when "Edit" is chosen.
+  $("t-preview").onchange = (e) => {
+    const box = e.target.closest(".conflict");
+    if (box && e.target.type === "radio") box.querySelector(".conflict-edit").hidden = e.target.value !== "edit";
   };
   load();
 }

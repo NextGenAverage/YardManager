@@ -79,8 +79,9 @@ the file are kept. Rows with an unknown carrier are skipped: add the carrier on
 Manage > Carriers (admins) and import again.
 
 A reg. number listed more than once with different details (e.g. under both INT
-and DSV, or with two trailer IDs) is skipped and listed, rather than guessing
-which line is right. The same trailer ID on two reg. numbers is imported but
+and DSV, or with two trailer IDs) is a conflict: the preview asks what to do with
+each one (skip, the default; use one of its lines; or edit the trailer ID and
+carrier), with "set all to skip / first line / last line" for many at once. The same trailer ID on two reg. numbers is imported but
 listed under *Check* (often a typo in one of the reg. numbers). Files saved by
 Excel in UTF-8 or the older Windows encoding both work.
 

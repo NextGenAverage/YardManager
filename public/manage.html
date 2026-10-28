@@ -46,8 +46,8 @@
       <p class="intro">
         Columns: <b>Car</b> / Supplier (DSV, INT…), <b>Ilu</b> / Trailer ID and <b>Reg</b> (licence plate), in any order.
         Comma or semicolon separated (Excel: Save as → CSV). New reg. numbers are added and changed
-        ones updated; reg. numbers not in the file are kept. A reg. number listed twice with different
-        details is skipped, so nothing is guessed.
+        ones updated; reg. numbers not in the file are kept. If a reg. number is listed more than once
+        with different details, the preview asks what to do: skip it, use one of the lines, or edit it.
       </p>
       <input type="file" id="t-file" accept=".csv,text/csv,text/plain">
       <div id="t-preview"></div>

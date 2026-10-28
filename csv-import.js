@@ -54,16 +54,17 @@ function parseCsv(text) {
 
 // Turn the CSV into register rows. carriers: [{ code, name }].
 // Returns {
-//   rows:     [{ line, plate, trailerId, carrier }]  rows that can be imported
-//   errors:   [...]  why rows were skipped
-//   warnings: [...]  imported, but worth checking
-//   skipped:  number of lines skipped
+//   rows:      [{ line, plate, trailerId, carrier }]  rows that can be imported
+//   conflicts: [{ plate, lines: [{ line, trailerId, carrier }] }]  reg. numbers listed
+//              more than once with different trailer ID or carrier; the user decides
+//              in the preview (skip, use one of the lines, or edit)
+//   errors:    [...]  why lines were skipped
+//   warnings:  [...]  imported, but worth checking
+//   skipped:   number of lines skipped (not counting conflicts)
 // }
-// A reg. number listed more than once with different trailer ID or carrier is
-// a conflict: all its lines are skipped rather than guessing which is right.
 function readTrailerCsv(text, carriers) {
   const [header, ...lines] = parseCsv(text);
-  if (!header) return { rows: [], errors: ["The file is empty."], warnings: [], skipped: 0 };
+  if (!header) return { rows: [], conflicts: [], errors: ["The file is empty."], warnings: [], skipped: 0 };
 
   const index = {};
   const names = header.map(simplify);
@@ -74,7 +75,7 @@ function readTrailerCsv(text, carriers) {
   if (missing.length) {
     const label = { carrier: "supplier/carrier", trailerId: "trailer ID", plate: "reg. number" };
     return {
-      rows: [], warnings: [], skipped: lines.length,
+      rows: [], conflicts: [], warnings: [], skipped: lines.length,
       errors: [`Couldn't find the column(s) ${missing.map((k) => label[k]).join(", ")}. `
         + `Columns in the file: ${header.join(", ")}.`],
     };
@@ -109,16 +110,11 @@ function readTrailerCsv(text, carriers) {
     byPlate.get(plate).push({ line, plate, trailerId, carrier });
   });
 
-  const rows = [];
+  const rows = [], conflicts = [];
   for (const [plate, list] of byPlate) {
     const differs = list.some((r) => r.trailerId !== list[0].trailerId || r.carrier !== list[0].carrier);
-    if (differs) {
-      errors.push(`${plate} is listed ${list.length} times with different details (`
-        + list.map((r) => `line ${r.line}: ${r.trailerId} ${r.carrier || "–"}`).join("; ") + "). Skipped; fix the list and import again.");
-      skipped += list.length;
-    } else {
-      rows.push(list[0]); // exact duplicates count once
-    }
+    if (differs) conflicts.push({ plate, lines: list.map(({ line, trailerId, carrier }) => ({ line, trailerId, carrier })) });
+    else rows.push(list[0]); // exact duplicates count once
   }
 
   // The same trailer ID on several reg. numbers is often a typo in a reg. number.
@@ -128,7 +124,7 @@ function readTrailerCsv(text, carriers) {
     if (plateOfId.has(key)) warnings.push(`Trailer ID ${r.trailerId} is used by both ${plateOfId.get(key)} and ${r.plate}.`);
     else plateOfId.set(key, r.plate);
   }
-  return { rows, errors, warnings, skipped };
+  return { rows, conflicts, errors, warnings, skipped };
 }
 
-module.exports = { parseCsv, readTrailerCsv, normalizePlate };
+module.exports = { parseCsv, readTrailerCsv, normalizePlate, cleanTrailerId };
