@@ -39,6 +39,7 @@ function state() {
   return {
     statuses: yard.getStatuses(),
     sections: yard.getSections(),
+    buildings: yard.getBuildings(),
     placements: yard.getPlacements(),
     carriers: yard.getCarriers(),
   };

@@ -1,8 +1,8 @@
-// Drawing the yard: the map, the side panel (Unassigned), the legend and the
-// search highlight. Clicks on spots are handled in main.js.
+// Drawing the yard: buildings and spots on the map, the side panel (Unassigned),
+// street parking below the gate, the legend and the search highlight. Clicks on spots are handled in main.js.
 import { $, esc, dwell, showMsg } from "./util.js";
 import { yard, ui, statusStyle, carrierBadge } from "./store.js";
-import { refit } from "./zoom.js";
+import { refit, setMapWidth } from "./zoom.js";
 
 export function renderLegend() {
   $("legend-items").innerHTML = Object.entries(yard.statuses)
@@ -37,17 +37,24 @@ function sectionHtml(s, index) {
 }
 
 export function render() {
-  // Unassigned ("pool") sections go in the side panel, everything else on the map.
-  let map = "", side = "";
+  // Unassigned ("pool") sections go in the side panel, street parking below the
+  // gate, everything else on the map.
+  let map = "", side = "", street = "";
   yard.sections.forEach((s, i) => {
     if (s.kind === "pool") side += sectionHtml(s, i);
+    else if (s.kind === "street") street += sectionHtml(s, i);
     else map += sectionHtml(s, i);
   });
+  $("buildings").innerHTML = yard.buildings.map((b) =>
+    `<div class="bld${b.label ? " hall" : ""}" style="left:${b.x}px;top:${b.y}px;width:${b.w}px;height:${b.h}px">${esc(b.label || "")}</div>`
+  ).join("");
   $("map").innerHTML = map;
+  $("street-map").innerHTML = street;
+  $("street").hidden = !street;
   $("side").innerHTML = side;
   $("side").hidden = !side;
+  sizeScenes();
   refit(); // the side panel's width changes the room left for the map
-  sizeScene();
 
   for (const b of document.querySelectorAll(".bay")) {
     const t = yard.placements[b.dataset.id];
@@ -64,22 +71,38 @@ export function render() {
   }
 }
 
-// The map is as tall as its lowest section (title + rows of spots + door strip).
-let sceneHeight = 0;
-function sizeScene() {
-  let bottom = 0;
+// The outer edges of a section in px: title, rows of spots, door strip.
+function sectionBox(s) {
+  const rows = Math.ceil(s.spots.length / s.cols);
+  const sideways = s.o === "e" || s.o === "w";
+  const rowHeight = sideways ? s.th || 40 : s.sh + (s.kind === "door" ? 28 : 0);
+  return { right: s.x + s.cols * s.cw + 6, bottom: s.y + (s.title ? 18 : 0) + rows * rowHeight + 6 };
+}
+
+// The map is as wide and tall as its sections and buildings reach; the street
+// strip as tall as its sections. The zoom fits the map's width to the screen.
+function sizeScenes() {
+  let right = 0, bottom = 0, streetRight = 0, streetBottom = 0;
   for (const s of yard.sections) {
     if (s.kind === "pool") continue;
-    const rows = Math.ceil(s.spots.length / s.cols);
-    const sideways = s.o === "e" || s.o === "w";
-    const rowHeight = sideways ? s.th || 40 : s.sh + (s.kind === "door" ? 28 : 0);
-    bottom = Math.max(bottom, s.y + (s.title ? 18 : 0) + rows * rowHeight + 6);
+    const box = sectionBox(s);
+    if (s.kind === "street") {
+      streetRight = Math.max(streetRight, box.right);
+      streetBottom = Math.max(streetBottom, box.bottom);
+    } else {
+      right = Math.max(right, box.right);
+      bottom = Math.max(bottom, box.bottom);
+    }
   }
-  const height = Math.max(600, bottom + 20);
-  if (height !== sceneHeight) {
-    sceneHeight = height;
-    $("scene").style.height = height + "px";
-    refit(); // a taller page may add a scrollbar, which narrows the room for the map
+  for (const b of yard.buildings) {
+    right = Math.max(right, b.x + b.w);
+    bottom = Math.max(bottom, b.y + b.h);
+  }
+  const width = Math.max(800, right + 20, streetRight + 20);
+  setMapWidth(width);
+  for (const [id, height] of [["scene", Math.max(600, bottom + 20)], ["street-scene", streetBottom + 10]]) {
+    $(id).style.width = width + "px";
+    $(id).style.height = height + "px";
   }
 }
 

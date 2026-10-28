@@ -44,9 +44,7 @@
     <div class="lot">
       <div class="pan" id="pan">
         <div class="scene" id="scene">
-          <div class="bld hall" style="left:460px; top:130px; width:960px; height:430px">WAREHOUSE</div>
-          <div class="bld" style="left:190px; top:560px; width:1230px; height:150px"></div>
-          <div class="bld" style="left:190px; top:560px; width:700px; height:300px"></div>
+          <div id="buildings"></div>
           <div id="map"></div>
         </div>
       </div>
@@ -54,6 +52,12 @@
         <div class="booth">GATE</div>
         <div class="arm"></div>
         <div class="lanes"><span>⇠ OUT</span><span>IN ⇢</span></div>
+      </div>
+      <!-- Street parking outside the gate (map.js); same zoom as the map -->
+      <div class="street" id="street" hidden>
+        <div class="pan" id="street-pan">
+          <div class="scene street-scene" id="street-scene"><div id="street-map"></div></div>
+        </div>
       </div>
     </div>
   </main>

@@ -174,6 +174,43 @@ const migrations = [
       }
     }
   },
+  // Buildings move from the page into the database (so the layout can change),
+  // and a layout change (October 2026): the warehouse with all its doors moves
+  // 460 px right, P1-P7 move down to line up with P8, new spots P14-P18 in the
+  // top-left corner and street parking S1-S8 outside the gate. The layout part
+  // is only done if the yard still has the previous layout (door R03 at x 520).
+  // A new install gets this layout from default-layout.js instead.
+  (db) => {
+    db.exec(`CREATE TABLE buildings (
+      id    INTEGER PRIMARY KEY,
+      sort  INTEGER NOT NULL,
+      label TEXT,
+      x INTEGER NOT NULL, y INTEGER NOT NULL, w INTEGER NOT NULL, h INTEGER NOT NULL
+    )`);
+    const sections = db.prepare("SELECT * FROM sections").all()
+      .map((s) => ({ ...s, list: JSON.parse(s.spots), g: JSON.parse(s.geometry) }));
+    const r03 = sections.find((s) => s.list.includes("R03"));
+    if (!r03) return; // new install: seed() adds the new layout
+    const shift = r03.g.x === 520 ? 460 : 0;
+    const building = db.prepare("INSERT INTO buildings (sort, label, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?)");
+    [["WAREHOUSE", 460, 130, 960, 430], [null, 190, 560, 1230, 150], [null, 190, 560, 700, 300]]
+      .forEach(([label, x, y, w, h], i) => building.run(i, label, x + shift, y, w, h));
+    if (!shift) return; // the layout was already changed in another way: leave it
+
+    const setGeometry = db.prepare("UPDATE sections SET geometry = ? WHERE id = ?");
+    for (const s of sections) {
+      if (s.kind === "door") setGeometry.run(JSON.stringify({ ...s.g, x: s.g.x + shift }), s.id);
+      if (s.list[0] === "P1" && s.g.y === 1010) setGeometry.run(JSON.stringify({ ...s.g, y: 1052 }), s.id);
+    }
+    const maxSort = Math.max(...sections.map((s) => s.sort));
+    const add = db.prepare(`INSERT INTO sections (sort, title, kind, default_status, noun, spots, geometry)
+      VALUES (?, ?, ?, ?, ?, ?, ?)`);
+    add.run(maxSort + 1, null, "park", "Loaded", "Parking spot ", JSON.stringify(["P14", "P15", "P16", "P17", "P18"]),
+      JSON.stringify({ o: "s", x: 74, y: 30, cols: 5, cw: 48, sh: 110 }));
+    add.run(maxSort + 2, "Street parking", "street", "Undefined", "Street spot ",
+      JSON.stringify(["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"]),
+      JSON.stringify({ o: "e", x: 10, y: 6, cols: 8, cw: 190, sh: 190, th: 56 }));
+  },
 ];
 
 function migrate() {
@@ -201,11 +238,13 @@ function seed() {
 
     const section = db.prepare(`INSERT INTO sections (sort, title, kind, default_status, noun, spots, geometry)
       VALUES (?, ?, ?, ?, ?, ?, ?)`);
-    defaultLayout.forEach((s, i) => {
+    defaultLayout.sections.forEach((s, i) => {
       const { o, x, y, cols, cw, sh, th } = s;
       section.run(i, s.title || null, s.kind, s.defaultStatus, s.noun,
         JSON.stringify(s.spots), JSON.stringify({ o, x, y, cols, cw, sh, th }));
     });
+    const building = db.prepare("INSERT INTO buildings (sort, label, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?)");
+    defaultLayout.buildings.forEach((b, i) => building.run(i, b.label || null, b.x, b.y, b.w, b.h));
   })();
 }
 
@@ -216,6 +255,10 @@ seed();
 
 function getStatuses() {
   return db.prepare("SELECT name, color FROM statuses ORDER BY sort").all();
+}
+
+function getBuildings() {
+  return db.prepare("SELECT label, x, y, w, h FROM buildings ORDER BY sort, id").all();
 }
 
 function getSections() {
@@ -452,7 +495,7 @@ function getHistory({ trailer, spot, limit = 200 }) {
 
 module.exports = {
   db, YardError,
-  getStatuses, getSections, getPlacements, spotExists, statusExists, getHistory,
+  getStatuses, getSections, getBuildings, getPlacements, spotExists, statusExists, getHistory,
   placeTrailer, moveTrailer, departTrailer, removeTrailer, correctTimes,
   getCarriers, carrierExists, saveCarrier, deleteCarrier,
   getTrailer, listTrailers, linkTrailer, unlinkTrailer, importTrailers,

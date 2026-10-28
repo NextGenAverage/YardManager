@@ -240,7 +240,7 @@ main > .lot:last-child {
 .scene {
   position: relative;
   width: 1560px;
-  height: 1240px;   /* replaced by map.js to fit the layout */
+  height: 1240px;   /* both replaced by map.js to fit the layout */
 }
 
 /* Warehouse buildings */
@@ -1254,16 +1254,29 @@ a.btn {
   font-size: 14px;
 }
 
-/* Sideways parking spots (P8-P13): yellow lines, one spot per row */
+/* Sideways parking spots (P8-P13 column, street parking row): yellow box around
+   each spot - the grid draws the top and left lines, each stall its right and bottom */
 .o-w .grid.pkg,
 .o-e .grid.pkg {
-  border: 3px solid var(--yellow);
-  border-bottom: 0;
+  border: 0;
+  border-top: 3px solid var(--yellow);
+  border-left: 3px solid var(--yellow);
 }
 
 .o-w .pkg .stall,
 .o-e .pkg .stall {
   border-top: 0;
-  border-right: 0;
+  border-right: 3px solid var(--yellow);
   border-bottom: 3px solid var(--yellow);
+}
+
+/* Street parking: a strip of road below the gate, outside the fence */
+.street {
+  padding: 10px 0 6px;
+  border-top: 4px solid #555b66;
+  background: #2b2e33 radial-gradient(rgba(255, 255, 255, .04) 1px, transparent 1.5px) 0 0 / 6px 6px;
+}
+
+.street-scene {
+  position: relative;
 }

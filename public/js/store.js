@@ -6,6 +6,7 @@ export const yard = {
   statuses: {},   // { "Loading": "#f2a516", ... }
   placements: {}, // { spotId: { plate, trailerId, carrier, status, note, damaged, since } }
   carriers: {},   // { "DSV": { name: "DSV", color: "#0b3d91" }, ... }
+  buildings: [],  // grey warehouse blocks: [{ label, x, y, w, h }]
 };
 
 export const ui = {
@@ -25,6 +26,7 @@ export const onYardChange = (fn) => listeners.push(fn);
 // Called with every state the server sends (live updates and replies).
 export function setYard(state) {
   yard.sections = state.sections;
+  yard.buildings = state.buildings;
   yard.placements = state.placements;
   yard.statuses = Object.fromEntries(state.statuses.map((s) => [s.name, s.color]));
   yard.carriers = Object.fromEntries(state.carriers.map((c) => [c.code, { name: c.name, color: c.color }]));
@@ -47,9 +49,9 @@ export function carrierBadge(code) {
   return `<b class="cr" style="--cc:${c.color};--cf:${textColor(c.color)}" title="${esc(c.name)}">${esc(code)}</b>`;
 }
 
-// "Door 201", "Parking spot 5", "Unassigned slot 3".
+// "Door 201", "Parking spot 5", "Unassigned slot 3", "Street spot 2".
 export function spotName(spot) {
   const s = sectionOf(spot);
   if (!s) return "spot " + spot;
-  return s.noun + (/^[PU]\d+$/.test(spot) ? spot.slice(1) : spot);
+  return s.noun + (/^[PUS]\d+$/.test(spot) ? spot.slice(1) : spot);
 }

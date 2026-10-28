@@ -3,15 +3,20 @@
 // with + / − is remembered on this device.
 import { $ } from "./util.js";
 
-const MAP_WIDTH = 1560; // width of the map drawing in px at zoom 1
 const STORAGE_KEY = "yard-zoom";
+let mapWidth = 1560; // width of the map drawing in px at zoom 1; set by map.js from the layout
 
 let zoom = 1;
 let auto = true;
 
+// The map and the street strip below the gate always share one zoom.
 function setZoom(value) {
-  zoom = Math.max(0.4, Math.min(2.2, value));
-  $("scene").style.zoom = zoom;
+  zoom = Math.max(0.3, Math.min(2.2, value));
+  for (const scene of document.querySelectorAll(".scene")) scene.style.zoom = zoom;
+}
+
+export function setMapWidth(width) {
+  mapWidth = width;
 }
 
 function remember(value) {
@@ -24,7 +29,7 @@ function remember(value) {
 // shrinkPhone: on phones, also shrink to the screen width (the Fit button).
 function fit(shrinkPhone) {
   const w = $("pan").clientWidth;
-  if (w >= 700 || shrinkPhone) setZoom(w / MAP_WIDTH);
+  if (w >= 700 || shrinkPhone) setZoom(w / mapWidth);
   else setZoom(1);
 }
 
