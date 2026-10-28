@@ -1,155 +1,224 @@
-# Yard Manager
+# 🚛 Yard Manager
 
-Shared trailer yard map for the distribution center: dock doors, trailer
-parking and unassigned trailers, live for every shift.
+**A live, shared map of the trailer yard at the distribution center.** Dock doors, trailer parking, street parking and unassigned trailers, the same for every shift and every device, updated the moment someone moves a trailer.
 
-## Run it
+Built with **Node.js**, **Express** and **SQLite**, plus a plain HTML/JavaScript front end with no build step.
 
-Requires Node.js 22 or newer.
+---
+
+## ✨ Features
+
+### 🗺️ The yard map
+- 🚚 **Every trailer on the map** with its reg. number, a carrier badge (`DSV`, `INT`…) and how long it has been there
+- 🎨 **Status colors:** Loading, Unloading, Loaded, Empty, Undefined
+- ⚠️ **Damaged marker**, a red outline that keeps the status color
+- ⏰ **Late marker** when a trailer is past its planned departure
+- 🔍 **Search** by reg. number, trailer ID, carrier or note
+- 👆 **One tap** opens a trailer's details; **Move** lifts it to another spot
+- 📡 **Live updates:** every open map changes instantly, with a Live/Offline indicator
+- 📱 **Works on phones, tablets, PCs and wall screens**, with zoom that remembers your choice
+
+### 📦 Trailers and arrivals
+- 🔗 **Trailer register:** each reg. number is linked to its trailer ID and carrier, filled in automatically
+- 📥 **CSV import** of the carrier's trailer list, with a preview and conflict handling
+- 🛬 **Incoming list** of expected arrivals; tap *Arrived* and place the trailer on the map
+- 🕓 **Arrival, departure and planned times** are recorded for every visit
+- 📜 **Full history:** who did what and when, per trailer, per spot or for the whole yard
+
+### 🔐 People and safety
+- 👥 **Four roles:** Viewer, Worker, Operator, Admin
+- 🔑 **Logins** with temporary passwords for new users, and lockout after wrong passwords
+- 🛡️ **Every action is checked on the server**, not just hidden in the page
+
+### 🛠️ Admin tools (Manage page)
+- 🧭 **Map editor:** drag sections and buildings, add or remove spots, restore earlier layouts
+- 🏷️ **Carriers:** names and badge colors
+- 👤 **Users:** add, change role, deactivate, reset passwords
+
+---
+
+## 🚀 Getting started
+
+**Requires** [Node.js](https://nodejs.org) 22 or newer.
 
 ```sh
+# 1. Install dependencies
 npm install
-npm start          # http://localhost:3000
-npm run dev        # same, restarts automatically when files change
+
+# 2. Create the first admin (prints a temporary password)
+npm run create-admin -- <username> "<Full name>"
+
+# 3. Start the server
+npm start            # 👉 http://localhost:3000
+npm run dev          # same, but restarts when files change
 ```
 
-Settings (environment variables):
+Open the map, log in with the temporary password and choose your own. Then add your coworkers under **Manage → Users**.
+
+### ⚙️ Settings
 
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORT` | `3000` | Web server port |
 | `DATA_DIR` | `./data` | Folder holding the database file `yard.db` |
 
-The database is created on first start, with the original yard layout and
-statuses (Loading, Unloading, Loaded, Empty, Undefined).
+The database is created on first start with the starting layout from `default-layout.js` and the five statuses. 💾 `data/` is not in git, so the yard's data, users and passwords stay on the server.
 
-## Users and roles
+---
 
-Everyone logs in. Create the first admin from the project folder:
+## 👥 Users and roles
 
-```sh
-npm run create-admin -- <username> "<Full name>"
-```
-
-It prints a temporary password; the admin chooses their own at first login.
-After that, admins add users on the **Manage** page, Users tab (link in the map header).
-New users also get a temporary password to change at first login.
-
-| Role | Can |
+| Role | What they can do |
 |---|---|
-| Viewer | See the map and history (e.g. a screen in the office) |
-| Worker | Also change status, damaged and note on trailers in the yard |
-| Operator | Also add, move, depart and remove trailers, correct times, and manage the trailer register |
-| Admin | Also manage users, carriers and the map layout |
+| 👀 **Viewer** | See the map and history (e.g. a screen in the office) |
+| 🦺 **Worker** | Also change status, damaged and note on trailers in the yard |
+| 🎛️ **Operator** | Also add, move, depart and remove trailers, correct times, plan departures, manage Incoming and the trailer register |
+| 👑 **Admin** | Also manage users, carriers and the map layout |
 
-- Logins last 12 hours (one shift); viewer logins last 30 days and renew
-  while in use, so a wall screen stays logged in.
-- Changing someone's role, deactivating them or resetting their password
-  logs them out everywhere.
-- 5 wrong passwords lock that username for 5 minutes.
-- **Locked out?** Run `npm run create-admin -- <username>` for an existing
-  user: they become an active admin with a new temporary password.
+- ⏱️ **Logins last 12 hours** (one shift). Viewer logins last 30 days and renew while in use, so a wall screen stays logged in.
+- 🚪 **Account changes log people out:** changing someone's role, deactivating them or resetting their password logs them out everywhere.
+- 🔒 **Wrong passwords:** 5 in a row lock that username for 5 minutes.
+- 🆘 **Locked out?** Run `npm run create-admin -- <username>` for an existing user. They become an active admin with a new temporary password.
 
-## Trailers: reg. number, trailer ID and carrier
+---
 
-The map shows each trailer's **reg. number** (licence plate) with a small
-**carrier** badge (e.g. DSV, INT). Each reg. number is linked to one **trailer
-ID** (the carrier's longer trailer name) and carrier in the trailer register:
+## 🚚 Trailers: reg. number, trailer ID and carrier
 
-- Typing a known reg. number in the edit sheet fills in its trailer ID and
-  carrier, locked.
-- For a new reg. number, operators must enter the trailer ID (and pick the
-  carrier); saving adds it to the register.
-- Links are changed or deleted on the **Manage** page, Trailers tab. Every
-  change is in the history with who made it.
-- Search finds trailers by reg. number, trailer ID, carrier or note.
-- Reg. numbers are stored in capitals without spaces (`ab 12345` = `AB12345`).
+The map shows each trailer's **reg. number** (licence plate) with a small **carrier** badge. In the **trailer register**, each reg. number is linked to one **trailer ID** (the carrier's longer trailer name) and carrier.
 
-### Importing the trailer list (CSV)
+- ✍️ **Known reg. number:** typing it in the edit sheet fills in its trailer ID and carrier, locked.
+- 🆕 **New reg. number:** operators enter the trailer ID and pick the carrier, and saving adds it to the register.
+- 🔁 **Changing links:** done on **Manage → Trailers**. Every change is in the history with who made it.
+- 🔤 **Spaces don't matter:** reg. numbers are stored in capitals without spaces, so `ab 12345` = `AB12345`.
 
-Manage > Trailers > *Import from CSV file*. The file needs the columns
-**Car** / Supplier (carrier code or name), **Ilu** / Trailer ID and **Reg**, in any order;
-other columns are ignored. Comma, semicolon (Norwegian Excel) and tab separated
-files work; in Excel use *Save as → CSV*. Other accepted header names are listed
-at the top of `csv-import.js`.
+### 📥 Importing the trailer list (CSV)
 
-The import first shows a preview (new, changed, unchanged, skipped rows and
-why); nothing is saved until you press *Import*. Reg. numbers that are not in
-the file are kept. Rows with an unknown carrier are skipped: add the carrier on
-Manage > Carriers (admins) and import again.
+**Manage → Trailers → Import from CSV file**
 
-A reg. number listed more than once with different details (e.g. under both INT
-and DSV, or with two trailer IDs) is a conflict: the preview asks what to do with
-each one (skip, the default; use one of its lines; or edit the trailer ID and
-carrier), with "set all to skip / first line / last line" for many at once. The same trailer ID on two reg. numbers is imported but
-listed under *Check* (often a typo in one of the reg. numbers). Files saved by
-Excel in UTF-8 or the older Windows encoding both work.
+| Column | Also accepted as | Example |
+|---|---|---|
+| **Car** | Supplier, Carrier, Leverandør | `DSV`, `INT` or `Bring` |
+| **Ilu** | Trailer ID, Trailer | `BEUA2324074` |
+| **Reg** | Reg.nr, Plate, Kjennemerke | `ABJ05C` |
 
-## Planned times and Incoming
+- 📄 **File format:** comma, semicolon (Norwegian Excel) or tab separated, in UTF-8 or the older Windows encoding. In Excel, use *Save as → CSV*. Other header names are listed at the top of `csv-import.js`.
+- 👀 **Preview first:** you see what's new, changed, unchanged or skipped, and why. Nothing is saved until you press **Import**.
+- 🤔 **Conflicts:** a reg. number listed twice with different details (e.g. under both INT and DSV). For each one you choose **Skip**, **Use line N** or **Edit**, or use *Set all to: Skip / First line / Last line*.
+- 🧐 **Check:** the same trailer ID on two reg. numbers is imported but flagged, since it's often a typo.
+- 🧷 **Nothing is deleted:** reg. numbers that aren't in the file are kept. Rows with an unknown carrier are skipped, so add the carrier under **Manage → Carriers** and import again.
 
-- **Planned departure**: operators set it in a trailer's edit sheet. Once it has
-  passed, the trailer shows a red *late* marker on the map instead of its
-  dwell time.
-- **Incoming** (header button): trailers expected to arrive, soonest first,
-  visible to everyone. Operators add them (reg. number; trailer ID and carrier
-  are filled in from the register) and remove them. The button shows how many
-  are expected and turns red when one is late.
-- **Arrived: place on map** on an entry, then tap an open spot: the sheet opens
-  filled in. When the trailer is saved it leaves the list, and its visit keeps
-  the planned arrival time; the history shows planned vs. actual times.
+---
 
-## Changing the yard layout (map editor)
+## 🕓 Planned times and Incoming
 
-Admins change the map on **Manage > Map**: select a section (a row of doors or
-a block of spots) or a building, drag it or use the arrow keys, and edit its
-details on the right (spots, direction, sizes, default status). **+ Section**
-and **+ Building** add new ones. Nothing changes for others until **Save
-layout**; then every open map updates.
+- 🛫 **Planned departure:** operators set it in the trailer's sheet. Once it passes, the map shows a red **late** marker instead of the dwell time.
+- 🛬 **Incoming** (header button): trailers expected to arrive, soonest first, visible to everyone. The button shows how many, e.g. *Incoming (3)*, and turns red when one is late.
+- 📍 **Arrived: place on map:** tap an open spot and the sheet opens filled in. Saving takes the trailer off the list and keeps its planned arrival on the visit.
+- 📊 **History** shows planned vs. actual times, e.g. *Planned arrival 10:27 · 40m late*.
 
-The server checks the layout before saving (`layout.js`): spot names must be
-unique, and a spot with a trailer on it can't disappear or be renamed (move the
-trailer first). Each save keeps the layout it replaced; **Earlier layouts**
-lists them with a *Restore* button.
+---
 
-Section types: *Doors*, *Parking*, *Unassigned* (shown in the side panel next
-to the map) and *Street parking* (shown below the gate).
+## 🧭 Changing the yard layout (map editor)
 
-## Code layout
+**Manage → Map** (admins):
 
-| Path | What it is |
+1. 🖱️ **Select** a section (a row of doors or a block of spots) or a building
+2. ✋ **Drag** it, or nudge it with the arrow keys (Shift = 10 px)
+3. 📝 **Edit** its details on the right: spots (with a *Fill* helper), direction, sizes, default status
+4. ➕ **Add** with *+ Section* / *+ Building*, or **Duplicate** / **Delete**
+5. 💾 **Save layout.** Nothing changes for others until you save, and then every open map updates.
+
+🛡️ The server checks the layout first (`layout.js`): spot names must be unique, and **a spot with a trailer on it can't disappear or be renamed** (move the trailer first).
+⏪ Every save keeps the layout it replaced, so use **Earlier layouts → Restore** to undo.
+
+| Section type | Shown |
+|---|---|
+| 🚪 Doors | On the map, with door signs |
+| 🅿️ Parking | On the map, yellow lines |
+| 📋 Unassigned | In the side panel next to the map |
+| 🛣️ Street parking | Below the gate, outside the fence |
+
+---
+
+## 🗂️ Project structure
+
+<details>
+<summary><b>🖥️ Server</b></summary>
+
+| File | What it does |
 |---|---|
 | `server.js` | Web server and the yard `/api/...` endpoints, with the role each needs |
 | `auth.js` | Passwords, sessions, roles and user accounts |
 | `auth-routes.js` | Login, logout, password change and the admin's user endpoints |
+| `db.js` | SQLite schema, upgrades (`migrations`) and yard queries |
 | `layout.js` | Checks a layout from the map editor before it is saved |
 | `csv-import.js` | Reads the CSV trailer list (columns, separators, checks) |
-| `scripts/create-admin.js` | Creates the first admin / recovers admin access |
-| `db.js` | SQLite schema, upgrades (`migrations`) and yard queries |
 | `default-layout.js` | Starting yard layout (sections and buildings), copied into the database on first run |
-| `public/index.html` | The yard map page: markup only (started as the `yard-lot3.html` prototype) |
-| `public/css/yard.css` | All page styles, grouped by part of the page |
-| `public/js/main.js` | Starts the page: taps on spots, moving trailers, keyboard, live updates |
-| `public/js/map.js` | Draws the map, the Unassigned side panel, legend and search highlight |
-| `public/js/sheet.js` | The edit sheet that opens when a spot is tapped |
-| `public/js/history.js` | The history panel |
-| `public/js/incoming.js` | The Incoming panel (expected arrivals) |
-| `public/js/zoom.js` | Zoom and Fit |
-| `public/js/api.js` | Requests to the server |
-| `public/js/store.js` | The yard state shared by the modules above |
-| `public/js/util.js` | Small helpers (escaping, time formatting) |
-| `public/login.html`, `public/js/login.js` | Login and choosing a new password |
-| `public/manage.html`, `public/js/manage.js` | Manage page (operators/admins): picks the tabs |
-| `public/js/manage-trailers.js` | Manage > Trailers: the trailer register |
-| `public/js/manage-map.js` | Manage > Map: the map editor (admins) |
-| `public/js/geometry.js` | Layout sizes shared by the map and the editor |
-| `public/js/manage-carriers.js` | Manage > Carriers (admins) |
-| `public/js/manage-users.js` | Manage > Users (admins) |
+| `scripts/create-admin.js` | Creates the first admin / recovers admin access |
 
-The page uses plain JavaScript modules (`import` / `export`), so there is no
-build step: edit a file and reload the browser.
+</details>
 
-## Changing the database schema
+<details>
+<summary><b>🌐 Pages</b></summary>
 
-Add a new SQL string at the end of `migrations` in `db.js`. On startup the app
-runs any migrations the database hasn't had yet. Never edit a migration that
-has already been run on the real server.
+| File | What it is |
+|---|---|
+| `public/index.html` | The yard map (markup only) |
+| `public/login.html` | Login and choosing a new password |
+| `public/manage.html` | Manage page: Trailers, Map, Carriers, Users |
+| `public/css/yard.css` | All styles, grouped by part of the page |
+
+</details>
+
+<details>
+<summary><b>⚡ JavaScript modules (<code>public/js/</code>)</b></summary>
+
+| File | What it does |
+|---|---|
+| `main.js` | Starts the map page: taps on spots, moving trailers, keyboard, live updates |
+| `map.js` | Draws the map, the side panel, street parking, legend and search highlight |
+| `sheet.js` | The edit sheet that opens when a spot is tapped |
+| `history.js` | The history panel |
+| `incoming.js` | The Incoming panel (expected arrivals) |
+| `zoom.js` | Zoom and Fit |
+| `geometry.js` | Layout sizes shared by the map and the editor |
+| `api.js` | Requests to the server |
+| `store.js` | The yard state shared by the modules above |
+| `util.js` | Small helpers (escaping, time formatting) |
+| `login.js` | Login page |
+| `manage.js` | Manage page: picks the tabs this user may see |
+| `manage-trailers.js` | Manage → Trailers: register and CSV import |
+| `manage-map.js` | Manage → Map: the map editor |
+| `manage-carriers.js` | Manage → Carriers |
+| `manage-users.js` | Manage → Users |
+
+</details>
+
+💡 The pages use plain JavaScript modules (`import` / `export`), so there is **no build step**: edit a file and reload the browser.
+
+---
+
+## 🧰 Notes for maintainers
+
+### 🗄️ Changing the database schema
+Add a new entry at the **end** of `migrations` in `db.js`. It can be an SQL string, or a function for changes that need logic. On startup the app runs every migration the database hasn't had yet.
+⚠️ **Never edit a migration** that has already run on the real server; add a new one instead.
+
+### 🔒 Security in short
+- 🔑 **Passwords:** hashed with scrypt; the browser holds only a random session token in an httpOnly cookie.
+- ✅ **Every endpoint** checks the user's role on the server.
+- 🧱 **Changes must be sent as JSON**, which stops other websites from acting as a logged-in user.
+
+---
+
+## 🗺️ Still to come
+
+- [ ] 💾 **Backups:** nightly automatic copies, a download button and restore steps
+- [ ] 🌍 **Deployment:** running as a service on a company server, plus a maintainer guide
+- [ ] 🔐 **HTTPS:** needed before real use, so passwords aren't sent unencrypted
+
+---
+
+## 👤 Author
+
+**Truls Lauritzen**: trailer yard management for the distribution center 🚛
