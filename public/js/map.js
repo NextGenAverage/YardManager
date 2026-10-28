@@ -93,13 +93,17 @@ function sizeScenes() {
 }
 
 // Plates start large and shrink only as much as needed to fit their spot.
+// Only the length of the text counts (height for upright trailers, width for
+// sideways ones): across the text, bold letters always stick out of their line
+// a little, which must not make the plate shrink.
+const PLATE_MAX = 21, PLATE_MIN = 9;
 function fitNumbers() {
   for (const el of document.querySelectorAll(".trl .tr")) {
-    let size = 18;
+    const upright = getComputedStyle(el).writingMode.startsWith("vertical");
+    const tooLong = () => (upright ? el.scrollHeight > el.clientHeight + 1 : el.scrollWidth > el.clientWidth + 1);
+    let size = PLATE_MAX;
     el.style.fontSize = size + "px";
-    while (size > 9 && (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1)) {
-      el.style.fontSize = --size + "px";
-    }
+    while (size > PLATE_MIN && tooLong()) el.style.fontSize = --size + "px";
   }
 }
 
