@@ -53,7 +53,7 @@ h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#f4d34a;ma
 .pkg .stall{border-right-color:#f4d34a;border-top:3px solid #f4d34a}
 .bay:not(.on) .stall:after{content:"open";position:absolute;left:0;right:0;bottom:5px;font-size:10px;color:rgba(255,255,255,.28)}
 .lbl{position:absolute;left:0;right:0;top:4px;font-size:10px;color:rgba(255,255,255,.45)}
-.trl{position:absolute;inset:3px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:4px 0;color:var(--fg,#fff);overflow:hidden;
+.trl{position:absolute;inset:2px;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:3px 0 2px;color:var(--fg,#fff);overflow:hidden;
 background:repeating-linear-gradient(180deg,rgba(0,0,0,.1) 0 2px,transparent 2px 9px),linear-gradient(90deg,color-mix(in srgb,var(--c) 78%,#fff),var(--c) 45%,color-mix(in srgb,var(--c) 80%,#000));
 box-shadow:0 4px 8px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.35);transition:transform .12s}
 .trl .tr{writing-mode:vertical-rl;transform:rotate(180deg);font-size:15px;line-height:1;font-weight:800;letter-spacing:.02em;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5);flex:1;min-height:0;min-width:0;overflow:hidden;display:flex;align-items:center}
@@ -215,7 +215,7 @@ function sizeScene(){
 function fitNumbers(){
   var trs=document.querySelectorAll(".trl .tr");
   for(var i=0;i<trs.length;i++){
-    var el=trs[i],f=15;el.style.fontSize=f+"px";
+    var el=trs[i],f=18;el.style.fontSize=f+"px";
     while(f>9&&(el.scrollHeight>el.clientHeight+1||el.scrollWidth>el.clientWidth+1))el.style.fontSize=--f+"px";
   }
 }
@@ -356,14 +356,19 @@ function find(scroll){
   else if(!n)msg.innerHTML="No match for “"+esc(q)+"” on the map. "+'<button class="link" data-tr="'+esc(q)+'">Past visits</button>';
   else{msg.textContent=n+" found";if(scroll)first.scrollIntoView({block:"center",inline:"center",behavior:"smooth"})}
 }
-var z=1;
+// Zoom. Automatic ("Fit"): PCs and tablets fill the screen width (scroll down for
+// the rest); phones show the map at full size and pan. A zoom picked with +/−
+// is remembered on this device.
+var z=1,ZKEY="yard-zoom";
 function setZ(v){z=Math.max(.4,Math.min(2.2,v));$("scene").style.zoom=z}
+function saveZ(v){try{v?localStorage.setItem(ZKEY,v):localStorage.removeItem(ZKEY)}catch(e){}}
 var auto=true;
-function fit(f){var w=$("pan").clientWidth;if(w>=700)setZ(Math.max(.4,Math.min(w/1560,(innerHeight-230)/sceneH,2.2)));else setZ(f?w/1560:1)}
-$("zi").onclick=function(){auto=false;setZ(z+.15)};$("zo").onclick=function(){auto=false;setZ(z-.15)};
-$("zf").onclick=function(){auto=true;fit(true)};
+function fit(f){var w=$("pan").clientWidth;if(w>=700)setZ(w/1560);else setZ(f?w/1560:1)}
+$("zi").onclick=function(){auto=false;setZ(z+.15);saveZ(z)};$("zo").onclick=function(){auto=false;setZ(z-.15);saveZ(z)};
+$("zf").onclick=function(){auto=true;saveZ(null);fit(true)};
 window.addEventListener("resize",function(){if(auto)fit()});
-fit();
+try{var zs=+localStorage.getItem(ZKEY);if(zs){auto=false;setZ(zs)}}catch(e){}
+if(auto)fit();
 $("q").oninput=function(){find(true)};
 $("msg").textContent="Loading…";
 // Live updates: the server sends the whole yard every time anything changes.
