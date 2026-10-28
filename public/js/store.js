@@ -1,10 +1,11 @@
 // The yard as last received from the server, plus page state shared between modules.
-import { textColor } from "./util.js";
+import { esc, textColor } from "./util.js";
 
 export const yard = {
   sections: [],   // layout: [{ title, kind, spots: [...], x, y, ... }]
   statuses: {},   // { "Loading": "#f2a516", ... }
-  placements: {}, // { spotId: { plate, trailerId, status, note, damaged, since } }
+  placements: {}, // { spotId: { plate, trailerId, carrier, status, note, damaged, since } }
+  carriers: {},   // { "DSV": { name: "DSV", color: "#0b3d91" }, ... }
 };
 
 export const ui = {
@@ -26,6 +27,7 @@ export function setYard(state) {
   yard.sections = state.sections;
   yard.placements = state.placements;
   yard.statuses = Object.fromEntries(state.statuses.map((s) => [s.name, s.color]));
+  yard.carriers = Object.fromEntries(state.carriers.map((c) => [c.code, { name: c.name, color: c.color }]));
   if (ui.moving && !yard.placements[ui.moving]) ui.moving = null; // someone else moved it
   listeners.forEach((fn) => fn());
 }
@@ -37,6 +39,13 @@ export function statusStyle(name) {
 }
 
 export const sectionOf = (spot) => yard.sections.find((s) => s.spots.includes(spot));
+
+// Carrier badge, e.g. a small purple "INT"; empty if the carrier is unknown.
+export function carrierBadge(code) {
+  const c = yard.carriers[code];
+  if (!c) return "";
+  return `<b class="cr" style="--cc:${c.color};--cf:${textColor(c.color)}" title="${esc(c.name)}">${esc(code)}</b>`;
+}
 
 // "Door 201", "Parking spot 5", "Unassigned slot 3".
 export function spotName(spot) {

@@ -40,7 +40,7 @@ New users also get a temporary password to change at first login.
 | Viewer | See the map and history (e.g. a screen in the office) |
 | Worker | Also change status, damaged and note on trailers in the yard |
 | Operator | Also add, move, depart and remove trailers, correct times, and manage the trailer register |
-| Admin | Also manage users |
+| Admin | Also manage users and carriers |
 
 - Logins last 12 hours (one shift); viewer logins last 30 days and renew
   while in use, so a wall screen stays logged in.
@@ -50,17 +50,33 @@ New users also get a temporary password to change at first login.
 - **Locked out?** Run `npm run create-admin -- <username>` for an existing
   user: they become an active admin with a new temporary password.
 
-## Trailers: reg. number and trailer ID
+## Trailers: reg. number, trailer ID and carrier
 
-The map shows each trailer's **reg. number** (licence plate). Each reg. number
-is linked to one **trailer ID** (the carrier's longer trailer name) in the
-trailer register:
+The map shows each trailer's **reg. number** (licence plate) with a small
+**carrier** badge (e.g. DSV, INT). Each reg. number is linked to one **trailer
+ID** (the carrier's longer trailer name) and carrier in the trailer register:
 
-- Typing a known reg. number in the edit sheet fills in its trailer ID, locked.
-- For a new reg. number, operators must enter the trailer ID; saving links them.
+- Typing a known reg. number in the edit sheet fills in its trailer ID and
+  carrier, locked.
+- For a new reg. number, operators must enter the trailer ID (and pick the
+  carrier); saving adds it to the register.
 - Links are changed or deleted on the **Manage** page, Trailers tab. Every
   change is in the history with who made it.
-- Search and history find trailers by reg. number or trailer ID.
+- Search finds trailers by reg. number, trailer ID, carrier or note.
+- Reg. numbers are stored in capitals without spaces (`ab 12345` = `AB12345`).
+
+### Importing the trailer list (CSV)
+
+Manage > Trailers > *Import from CSV file*. The file needs the columns
+**Supplier** (carrier code or name), **Trailer ID** and **Reg**, in any order;
+other columns are ignored. Comma, semicolon (Norwegian Excel) and tab separated
+files work; in Excel use *Save as → CSV*. Other accepted header names are listed
+at the top of `csv-import.js`.
+
+The import first shows a preview (new, changed, unchanged, skipped rows and
+why); nothing is saved until you press *Import*. Reg. numbers that are not in
+the file are kept. Rows with an unknown carrier are skipped: add the carrier on
+Manage > Carriers (admins) and import again.
 
 ## Code layout
 
@@ -69,6 +85,7 @@ trailer register:
 | `server.js` | Web server and the yard `/api/...` endpoints, with the role each needs |
 | `auth.js` | Passwords, sessions, roles and user accounts |
 | `auth-routes.js` | Login, logout, password change and the admin's user endpoints |
+| `csv-import.js` | Reads the CSV trailer list (columns, separators, checks) |
 | `scripts/create-admin.js` | Creates the first admin / recovers admin access |
 | `db.js` | SQLite schema, upgrades (`migrations`) and yard queries |
 | `default-layout.js` | Starting yard layout, copied into the database on first run |
@@ -85,6 +102,7 @@ trailer register:
 | `public/login.html`, `public/js/login.js` | Login and choosing a new password |
 | `public/manage.html`, `public/js/manage.js` | Manage page (operators/admins): picks the tabs |
 | `public/js/manage-trailers.js` | Manage > Trailers: the trailer register |
+| `public/js/manage-carriers.js` | Manage > Carriers (admins) |
 | `public/js/manage-users.js` | Manage > Users (admins) |
 
 The page uses plain JavaScript modules (`import` / `export`), so there is no

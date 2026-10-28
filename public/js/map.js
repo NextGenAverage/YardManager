@@ -1,13 +1,14 @@
 // Drawing the yard: the map, the side panel (Unassigned), the legend and the
 // search highlight. Clicks on spots are handled in main.js.
 import { $, esc, dwell, showMsg } from "./util.js";
-import { yard, ui, statusStyle } from "./store.js";
+import { yard, ui, statusStyle, carrierBadge } from "./store.js";
 import { refit } from "./zoom.js";
 
 export function renderLegend() {
   $("legend-items").innerHTML = Object.entries(yard.statuses)
     .map(([name, color]) => `<span><i style="background:${color}"></i>${esc(name)}</span>`)
-    .join("");
+    .join("")
+    + Object.entries(yard.carriers).map(([code, c]) => `<span>${carrierBadge(code)} ${esc(c.name)}</span>`).join("");
 }
 
 // One spot: a door (with its door sign) or a parking/unassigned slot, with the
@@ -21,7 +22,7 @@ function spotHtml(section, index, spot) {
   if (section.kind !== "door" && !t) h += `<span class="lbl">${esc(spot)}</span>`;
   if (t) {
     h += `<span class="trl${t.damaged ? " dmg" : ""}" style="${statusStyle(t.status)}">`
-      + `<b class="tr"></b><i class="dw">${t.damaged ? "⚠ " : ""}${dwell(t.since)}</i></span>`;
+      + `<b class="tr"></b><i class="dw">${carrierBadge(t.carrier)}<span>${t.damaged ? "⚠ " : ""}${dwell(t.since)}</span></i></span>`;
   }
   return h + `</span></button>`;
 }
@@ -93,14 +94,14 @@ function fitNumbers() {
   }
 }
 
-// Highlight trailers whose plate, trailer ID or note contains the search text.
+// Highlight trailers whose plate, trailer ID, carrier or note contains the search text.
 // scroll: bring the first match into view (only while the user is typing).
 export function highlightSearch(scroll) {
   const q = $("q").value.trim().toUpperCase();
   let first = null, count = 0;
   for (const b of document.querySelectorAll(".bay")) {
     const t = yard.placements[b.dataset.id];
-    const hit = !!(q && t && [t.plate, t.trailerId, t.note].some((text) => (text || "").toUpperCase().includes(q)));
+    const hit = !!(q && t && [t.plate, t.trailerId, t.note, t.carrier, yard.carriers[t.carrier]?.name].some((text) => (text || "").toUpperCase().includes(q)));
     b.classList.toggle("hit", hit);
     if (hit) { count++; first = first || b; }
   }

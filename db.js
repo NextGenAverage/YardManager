@@ -123,6 +123,17 @@ const migrations = [
   INSERT OR IGNORE INTO trailers (plate, trailer_id, updated_at)
     SELECT plate, trailer_id, arrived_at FROM visits WHERE trailer_id != '' ORDER BY arrived_at DESC;
   `,
+  `
+  -- Carriers (code shown as a badge on the trailer). The register says which
+  -- carrier each reg. number belongs to.
+  CREATE TABLE carriers (
+    code  TEXT PRIMARY KEY,
+    name  TEXT NOT NULL,
+    color TEXT NOT NULL
+  );
+  INSERT INTO carriers (code, name, color) VALUES ('INT', 'Bring', '#7b2cbf'), ('DSV', 'DSV', '#0b3d91');
+  ALTER TABLE trailers ADD COLUMN carrier TEXT;
+  `,
 ];
 
 function migrate() {
@@ -178,12 +189,15 @@ function getSections() {
   }));
 }
 
-// Current yard: { spotId: { plate, trailerId, status, note, damaged, since } }
+// Current yard: { spotId: { plate, trailerId, carrier, status, note, damaged, since } }
+// The carrier comes from the trailer register.
 function getPlacements() {
   const out = {};
-  for (const v of db.prepare("SELECT * FROM visits WHERE departed_at IS NULL").all()) {
+  const rows = db.prepare(`SELECT v.*, t.carrier FROM visits v LEFT JOIN trailers t ON t.plate = v.plate
+    WHERE v.departed_at IS NULL`).all();
+  for (const v of rows) {
     out[v.spot_id] = {
-      plate: v.plate, trailerId: v.trailer_id, status: v.status, note: v.note,
+      plate: v.plate, trailerId: v.trailer_id, carrier: v.carrier ?? null, status: v.status, note: v.note,
       damaged: !!v.damaged, since: v.arrived_at,
     };
   }
@@ -222,21 +236,44 @@ function changes(v, next) {
 class YardError extends Error {}
 const GONE = "That trailer has already been moved or removed.";
 
-// ---- Trailer register: reg. number -> trailer ID ----
+// ---- Carriers ----
+
+function getCarriers() {
+  return db.prepare("SELECT code, name, color FROM carriers ORDER BY code").all();
+}
+
+function carrierExists(code) {
+  return !!db.prepare("SELECT 1 FROM carriers WHERE code = ?").get(code);
+}
+
+// Add a carrier or change its name/color.
+function saveCarrier({ code, name, color }) {
+  db.prepare(`INSERT INTO carriers (code, name, color) VALUES (?, ?, ?)
+    ON CONFLICT (code) DO UPDATE SET name = excluded.name, color = excluded.color`).run(code, name, color);
+}
+
+function deleteCarrier(code) {
+  const used = db.prepare("SELECT COUNT(*) n FROM trailers WHERE carrier = ?").get(code).n;
+  if (used) throw new YardError(`${code} is used by ${used} reg. number(s) in the register. Change those first.`);
+  db.prepare("DELETE FROM carriers WHERE code = ?").run(code);
+}
+
+// ---- Trailer register: reg. number -> trailer ID + carrier ----
 
 const trailerRow = (r) => r && {
-  plate: r.plate, trailerId: r.trailer_id, updatedAt: r.updated_at, updatedBy: r.updated_by, spot: r.spot_id ?? null,
+  plate: r.plate, trailerId: r.trailer_id, carrier: r.carrier ?? null,
+  updatedAt: r.updated_at, updatedBy: r.updated_by, spot: r.spot_id ?? null,
 };
 
 function getTrailer(plate) {
   return trailerRow(db.prepare("SELECT * FROM trailers WHERE plate = ?").get(plate)) ?? null;
 }
 
-// Search the register by reg. number or trailer ID (part of either).
+// Search the register by reg. number, trailer ID or carrier (part of any).
 // Also tells where each trailer is standing, if it is in the yard.
 function listTrailers(q = "", limit = 200) {
-  const where = q ? "WHERE t.plate LIKE ? OR t.trailer_id LIKE ?" : "";
-  const args = q ? [`%${q}%`, `%${q}%`] : [];
+  const where = q ? "WHERE t.plate LIKE ? OR t.trailer_id LIKE ? OR t.carrier LIKE ?" : "";
+  const args = q ? [`%${q}%`, `%${q}%`, `%${q}%`] : [];
   const rows = db.prepare(`SELECT t.*, v.spot_id FROM trailers t
     LEFT JOIN visits v ON v.plate = t.plate AND v.departed_at IS NULL
     ${where} ORDER BY t.plate LIMIT ?`).all(...args, limit);
@@ -244,18 +281,24 @@ function listTrailers(q = "", limit = 200) {
   return { trailers: rows.map(trailerRow), total };
 }
 
-const upsertTrailer = db.prepare(`INSERT INTO trailers (plate, trailer_id, updated_at, updated_by) VALUES (?, ?, ?, ?)
-  ON CONFLICT (plate) DO UPDATE SET trailer_id = excluded.trailer_id, updated_at = excluded.updated_at, updated_by = excluded.updated_by`);
+const upsertTrailer = db.prepare(`INSERT INTO trailers (plate, trailer_id, carrier, updated_at, updated_by) VALUES (?, ?, ?, ?, ?)
+  ON CONFLICT (plate) DO UPDATE SET trailer_id = excluded.trailer_id, carrier = excluded.carrier,
+    updated_at = excluded.updated_at, updated_by = excluded.updated_by`);
 
-// Link a reg. number to a trailer ID (new link or a change). A trailer of that
-// reg. number standing in the yard gets the new trailer ID too.
-const linkTrailer = db.transaction(({ plate, trailerId, by }) => {
+// Link a reg. number to a trailer ID and carrier (new link or a change). A
+// trailer of that reg. number standing in the yard gets the new trailer ID too.
+// Returns true if anything changed.
+const linkTrailer = db.transaction(({ plate, trailerId, carrier = null, by }) => {
+  if (carrier && !carrierExists(carrier)) throw new YardError(`Unknown carrier ${carrier}.`);
   const old = getTrailer(plate);
-  if (old?.trailerId === trailerId) return;
-  upsertTrailer.run(plate, trailerId, Date.now(), by || null);
+  if (old && old.trailerId === trailerId && old.carrier === carrier) return false;
+  upsertTrailer.run(plate, trailerId, carrier, Date.now(), by || null);
   const v = activePlate.get(plate);
   if (v) db.prepare("UPDATE visits SET trailer_id = ? WHERE id = ?").run(trailerId, v.id);
-  log("link", { id: v?.id ?? null, plate }, { by, from: v?.spot_id ?? null, details: { trailer_id: [old?.trailerId ?? "", trailerId] } });
+  const details = { trailer_id: [old?.trailerId ?? "", trailerId] };
+  if ((old?.carrier ?? null) !== carrier) details.carrier = [old?.carrier ?? "", carrier ?? ""];
+  log("link", { id: v?.id ?? null, plate }, { by, from: v?.spot_id ?? null, details });
+  return true;
 });
 
 const unlinkTrailer = db.transaction(({ plate, by }) => {
@@ -265,18 +308,29 @@ const unlinkTrailer = db.transaction(({ plate, by }) => {
   log("unlink", { id: null, plate }, { by, details: { trailer_id: [old.trailerId, ""] } });
 });
 
+// CSV import: rows of { plate, trailerId, carrier }, already checked.
+// Returns how many links were added or changed.
+const importTrailers = db.transaction((rows, by) => {
+  let changed = 0;
+  for (const r of rows) if (linkTrailer({ ...r, by })) changed++;
+  return changed;
+});
+
 // Save the trailer on a spot (new trailer, or edit of the one already there).
 // If that plate is already elsewhere in the yard the trailer is moved here,
 // keeping its arrival time, and any other trailer on this spot departs.
-// The register decides the trailer ID of a known reg. number; a new reg. number
-// is added to the register with the trailer ID given.
-const placeTrailer = db.transaction(({ spot, plate, trailerId, status, note, damaged, arrivedAt, by }) => {
+// The register decides the trailer ID and carrier of a known reg. number; a new
+// reg. number is added to the register with the trailer ID and carrier given.
+const placeTrailer = db.transaction(({ spot, plate, trailerId, carrier, status, note, damaged, arrivedAt, by }) => {
   const link = getTrailer(plate);
   if (link && trailerId && link.trailerId !== trailerId) {
     throw new YardError(`${plate} is linked to trailer ID ${link.trailerId}. Change the link on the Manage page.`);
   }
   if (link) trailerId = link.trailerId;
-  else if (trailerId) upsertTrailer.run(plate, trailerId, Date.now(), by || null);
+  else if (trailerId) {
+    if (carrier && !carrierExists(carrier)) throw new YardError(`Unknown carrier ${carrier}.`);
+    upsertTrailer.run(plate, trailerId, carrier || null, Date.now(), by || null);
+  }
 
   const here = activeAt.get(spot);
   let v = activePlate.get(plate);
@@ -359,5 +413,6 @@ module.exports = {
   db, YardError,
   getStatuses, getSections, getPlacements, spotExists, statusExists, getHistory,
   placeTrailer, moveTrailer, departTrailer, removeTrailer, correctTimes,
-  getTrailer, listTrailers, linkTrailer, unlinkTrailer,
+  getCarriers, carrierExists, saveCarrier, deleteCarrier,
+  getTrailer, listTrailers, linkTrailer, unlinkTrailer, importTrailers,
 };

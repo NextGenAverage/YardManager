@@ -18,6 +18,7 @@
   <!-- Tabs: shown according to role (manage.js). Later steps add more here. -->
   <nav class="tabs" id="tabs">
     <a href="#trailers" data-tab="trailers" hidden>Trailers</a>
+    <a href="#carriers" data-tab="carriers" hidden>Carriers</a>
     <a href="#users" data-tab="users" hidden>Users</a>
   </nav>
 
@@ -26,8 +27,8 @@
   <!-- Trailer register: reg. number -> trailer ID (manage-trailers.js) -->
   <section class="page" id="tab-trailers" hidden>
     <p class="intro">
-      Each reg. number (licence plate) is linked to one trailer ID. On the map the
-      trailer ID is filled in from here and can't be changed there.
+      Each reg. number (licence plate) is linked to one trailer ID and carrier. On the
+      map these are filled in from here and can't be changed there.
     </p>
     <p class="notice" id="t-notice" hidden></p>
     <p class="error" id="t-error"></p>
@@ -35,19 +36,51 @@
     <form class="add-user" id="t-add">
       <input name="plate" placeholder="Reg. number" required maxlength="20" autocapitalize="characters">
       <input name="trailerId" placeholder="Trailer ID" required maxlength="60">
+      <select name="carrier" class="carrier-options"></select>
       <button class="btn pri">Add</button>
     </form>
+
+    <!-- CSV import: preview first, then Import -->
+    <details class="import" id="t-import">
+      <summary>Import from CSV file</summary>
+      <p class="intro">
+        Columns: <b>Supplier</b> (DSV, INT…), <b>Trailer ID</b> and <b>Reg</b> (licence plate), in any order.
+        Comma or semicolon separated (Excel: Save as → CSV). New reg. numbers are added and changed
+        ones updated; reg. numbers not in the file are kept.
+      </p>
+      <input type="file" id="t-file" accept=".csv,text/csv,text/plain">
+      <div id="t-preview"></div>
+    </details>
 
     <input class="search" id="t-q" type="search" placeholder="Search reg. number or trailer ID…" autocomplete="off">
     <p class="count" id="t-count"></p>
     <div class="table-wrap">
       <table class="users">
         <thead>
-          <tr><th>Reg. number</th><th>Trailer ID</th><th>In yard</th><th>Last changed</th><th></th></tr>
+          <tr><th>Reg. number</th><th>Trailer ID</th><th>Carrier</th><th>In yard</th><th>Last changed</th><th></th></tr>
         </thead>
         <tbody id="t-rows"></tbody>
       </table>
     </div>
+  </section>
+
+  <!-- Carriers (admins, manage-carriers.js) -->
+  <section class="page" id="tab-carriers" hidden>
+    <p class="intro">The code is shown as a badge on the trailers on the map. A carrier can only be deleted when no reg. number uses it.</p>
+    <p class="error" id="c-error"></p>
+    <div class="table-wrap">
+      <table class="users">
+        <thead><tr><th>Code</th><th>Name</th><th>Badge color</th><th>Badge</th><th></th></tr></thead>
+        <tbody id="c-rows"></tbody>
+      </table>
+    </div>
+    <h2 class="page-h2">Add carrier</h2>
+    <form class="add-user" id="c-add">
+      <input name="code" placeholder="Code, e.g. DSV" required maxlength="10" autocapitalize="characters">
+      <input name="cname" placeholder="Name" required maxlength="40">
+      <input name="color" type="color" value="#5b606a" aria-label="Badge color">
+      <button class="btn pri">Add</button>
+    </form>
   </section>
 
   <!-- Users (admins, manage-users.js) -->
@@ -78,7 +111,7 @@
       <li><b>Viewer</b>: sees the map and history, changes nothing (e.g. a screen in the office).</li>
       <li><b>Worker</b>: can also change status, damaged and note on trailers in the yard.</li>
       <li><b>Operator</b>: can also add, move, depart and remove trailers, correct times and manage the trailer register.</li>
-      <li><b>Admin</b>: can also manage users.</li>
+      <li><b>Admin</b>: can also manage users and carriers.</li>
     </ul>
   </section>
 

@@ -1089,3 +1089,120 @@ a.btn {
 #t-add [name="plate"] {
   text-transform: uppercase;
 }
+
+#f-tr::placeholder,
+#t-add [name="plate"]::placeholder {
+  text-transform: none;
+}
+
+
+/* ============================================================
+   Carriers: badge on trailers and in the legend, picker in the sheet
+   ============================================================ */
+
+.cr {   /* --cc = carrier color, --cf = text color on it */
+  display: inline-block;
+  margin-right: 3px;
+  padding: 0 3px;
+  border: 1px solid rgba(255, 255, 255, .8);
+  border-radius: 3px;
+  background: var(--cc);
+  color: var(--cf);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 12px;
+  letter-spacing: .03em;
+}
+
+.legend .cr {
+  margin-right: 0;
+}
+
+/* Upright trailers are narrow: badge above the dwell time. Sideways ones: side by side. */
+.trl .dw {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.trl .dw .cr {
+  margin-right: 0;
+}
+
+.o-w .trl .dw,
+.o-e .trl .dw {
+  flex-direction: row;
+  gap: 3px;
+}
+
+.tid-row {
+  margin-bottom: 8px;
+}
+
+.tid-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+#sheet .tid-row input {
+  margin-bottom: 0;
+}
+
+#f-carrier,
+.cell-select {
+  flex: 0 0 auto;
+  max-width: 45%;
+  min-width: 110px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+}
+
+#f-carrier:disabled {
+  opacity: .75;
+}
+
+/* Manage > Trailers: CSV import */
+.import {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.import summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.import h4 {
+  margin: 12px 0 4px;
+  font-size: 13px;
+}
+
+.plain {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+}
+
+.danger-text {
+  color: var(--danger);
+}
+
+.import-actions {
+  max-width: 420px;
+  margin-top: 12px;
+}
+
+.add-user .carrier-options {
+  flex: 0 1 180px;
+  min-width: 120px;
+}

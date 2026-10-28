@@ -26,10 +26,12 @@ function describe(e) {
     case "depart": return `${t} departed from ${place(e.from_spot)}`;
     case "remove": return `${t} removed from ${place(e.from_spot)} (entered by mistake)`;
     case "link": {
-      const [before, after] = d.trailer_id;
-      return before
-        ? `${t} linked to trailer ID “${esc(after)}” (was “${esc(before)}”)`
-        : `${t} linked to trailer ID “${esc(after)}”`;
+      // details: { trailer_id: [old, new], carrier?: [old, new] }
+      const parts = [];
+      const [idBefore, idAfter] = d.trailer_id;
+      if (idBefore !== idAfter) parts.push(`trailer ID “${esc(idAfter)}”` + (idBefore ? ` (was “${esc(idBefore)}”)` : ""));
+      if (d.carrier) parts.push(`carrier ${esc(d.carrier[1] || "–")}` + (d.carrier[0] ? ` (was ${esc(d.carrier[0])})` : ""));
+      return `${t} linked to ${parts.join(" and ")}`;
     }
     case "unlink": return `${t} removed from the trailer register (was “${esc(d.trailer_id[0])}”)`;
   }

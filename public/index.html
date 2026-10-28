@@ -23,7 +23,7 @@
         <button class="link" id="b-logout">Log out</button>
       </small>
     </h1>
-    <input id="q" type="search" placeholder="Find reg. number, trailer ID or note…" autocomplete="off">
+    <input id="q" type="search" placeholder="Find reg. number, trailer ID, carrier or note…" autocomplete="off">
     <div id="msg"></div>
     <div class="legend">
       <span class="items" id="legend-items"></span>
@@ -62,7 +62,10 @@
   <div id="sheet">
     <h3 id="sh-title"></h3>
     <input id="f-tr" placeholder="Reg. number (licence plate)" autocapitalize="characters" autocomplete="off">
-    <input id="f-tid" placeholder="Trailer ID" autocomplete="off">
+    <div class="row tid-row">
+      <input id="f-tid" placeholder="Trailer ID" autocomplete="off">
+      <select id="f-carrier" aria-label="Carrier"></select>
+    </div>
     <p class="hint" id="tid-hint"></p>
     <div class="chips" id="chips"></div>
     <input id="f-note" placeholder="Note (optional)" autocomplete="off">

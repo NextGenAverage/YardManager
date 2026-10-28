@@ -25,9 +25,10 @@ function renderDamaged() {
   $("f-dmg").classList.toggle("sel", damaged);
 }
 
-// ---- Trailer ID: filled in from the register (reg. number -> trailer ID) ----
-// A known reg. number fills in its trailer ID, locked; links are changed on the
-// Manage page. For a new reg. number operators must type the trailer ID.
+// ---- Trailer ID and carrier: filled in from the register ----
+// A known reg. number fills in its trailer ID and carrier, locked; links are
+// changed on the Manage page. For a new reg. number operators type the trailer
+// ID (required) and pick the carrier.
 
 let linkedId = null; // trailer ID from the register for the reg. number typed, or null
 let lookups = 0;     // to ignore answers to older lookups while typing
@@ -41,8 +42,13 @@ async function lookUpPlate() {
     : null;
   if (n !== lookups) return; // a newer lookup has started
   const link = res?.trailer;
-  if (link) $("f-tid").value = link.trailerId;
-  else if (linkedId !== null) $("f-tid").value = ""; // it was filled in for another reg. number
+  if (link) {
+    $("f-tid").value = link.trailerId;
+    $("f-carrier").value = link.carrier || "";
+  } else if (linkedId !== null) { // they were filled in for another reg. number
+    $("f-tid").value = "";
+    $("f-carrier").value = "";
+  }
   linkedId = link ? link.trailerId : null;
   showTrailerIdState();
 }
@@ -51,11 +57,12 @@ function showTrailerIdState(error) {
   const hint = $("tid-hint");
   const operator = can("operator");
   $("f-tid").readOnly = linkedId !== null;
+  $("f-carrier").disabled = linkedId !== null || !operator;
   hint.classList.toggle("error", !!error);
   if (error) hint.textContent = error;
   else if (!operator || !$("f-tr").value.trim()) hint.textContent = "";
   else if (linkedId !== null) hint.innerHTML = 'Linked to this reg. number. Change it on the <a href="/manage.html#trailers">Manage page</a>.';
-  else hint.textContent = "New reg. number: enter its trailer ID.";
+  else hint.textContent = "New reg. number: enter its trailer ID and carrier.";
 }
 
 export function openSheet(id, sectionIndex) {
@@ -76,6 +83,9 @@ export function openSheet(id, sectionIndex) {
   $("sh-title").textContent = spotName(id);
   $("f-tr").value = t ? t.plate : "";
   $("f-tid").value = t?.trailerId || "";
+  $("f-carrier").innerHTML = `<option value="">Carrier…</option>`
+    + Object.entries(yard.carriers).map(([code, c]) => `<option value="${esc(code)}">${esc(code)} (${esc(c.name)})</option>`).join("");
+  $("f-carrier").value = t?.carrier || "";
   $("f-note").value = t?.note || "";
   status = t ? t.status : yard.sections[sectionIndex].defaultStatus;
   renderChips();
@@ -113,6 +123,7 @@ async function save() {
   const ok = await send("/api/place", {
     spot, plate, status, damaged,
     trailerId: $("f-tid").value.trim(),
+    carrier: $("f-carrier").value || null,
     note: $("f-note").value.trim(),
     arrivedAt: arrival !== arrivalShown ? fromLocalInput(arrival) : undefined,
   });

@@ -4,13 +4,16 @@ const express = require("express");
 const yard = require("./db");
 const auth = require("./auth");
 const authRoutes = require("./auth-routes");
+const { readTrailerCsv, normalizePlate } = require("./csv-import");
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, "public");
 
 const app = express();
 app.set("trust proxy", "loopback"); // correct client address and https when behind a local reverse proxy
-app.use(express.json());
+// Read JSON request bodies. The CSV import route reads its own, larger ones.
+const smallJson = express.json({ limit: "200kb" });
+app.use((req, res, next) => (req.path === "/api/trailers/import" ? next() : smallJson(req, res, next)));
 app.use(auth.loadUser);
 
 // Changes must be sent as JSON. Browsers can't send JSON to another site
@@ -37,6 +40,7 @@ function state() {
     statuses: yard.getStatuses(),
     sections: yard.getSections(),
     placements: yard.getPlacements(),
+    carriers: yard.getCarriers(),
   };
 }
 
@@ -100,8 +104,9 @@ app.get("/api/yard", viewer, (_req, res) => res.json(state()));
 // note and damaged of the trailer already there.
 app.post("/api/place", worker, (req, res) => {
   const spot = clean(req.body.spot, 20);
-  const plate = clean(req.body.plate, 20).toUpperCase();
+  const plate = normalizePlate(req.body.plate);
   const trailerId = clean(req.body.trailerId, 60);
+  const carrier = clean(req.body.carrier, 10) || null;
   const status = clean(req.body.status, 40);
   const note = clean(req.body.note, 200);
   const arrivedAt = time(req.body.arrivedAt);
@@ -119,7 +124,7 @@ app.post("/api/place", worker, (req, res) => {
       return res.status(403).json({ error: "Workers can change status, note and damaged only. Ask an operator for other changes." });
     }
   }
-  yard.placeTrailer({ spot, plate, trailerId, status, note, damaged: !!req.body.damaged, arrivedAt, by: who(req) });
+  yard.placeTrailer({ spot, plate, trailerId, carrier, status, note, damaged: !!req.body.damaged, arrivedAt, by: who(req) });
   changed(res);
 });
 
@@ -160,11 +165,11 @@ app.post("/api/visit-times", operator, (req, res) => {
   changed(res);
 });
 
-// ---- Trailer register (reg. number -> trailer ID) ----
+// ---- Trailer register (reg. number -> trailer ID + carrier) ----
 
 // Look up one reg. number, e.g. to fill in the trailer ID while typing.
 app.get("/api/trailers/:plate", viewer, (req, res) => {
-  res.json({ trailer: yard.getTrailer(clean(req.params.plate, 20).toUpperCase()) });
+  res.json({ trailer: yard.getTrailer(normalizePlate(req.params.plate)) });
 });
 
 // Manage page: search the register.
@@ -174,16 +179,59 @@ app.get("/api/trailers", operator, (req, res) => {
 
 // Manage page: add a link or change one.
 app.post("/api/trailers", operator, (req, res) => {
-  const plate = clean(req.body.plate, 20).toUpperCase();
+  const plate = normalizePlate(req.body.plate);
   const trailerId = clean(req.body.trailerId, 60);
+  const carrier = clean(req.body.carrier, 10) || null;
   if (!plate || !trailerId) return res.status(400).json({ error: "Reg. number and trailer ID are required." });
-  yard.linkTrailer({ plate, trailerId, by: who(req) });
-  changed(res); // the trailer ID of a trailer in the yard may have changed
+  yard.linkTrailer({ plate, trailerId, carrier, by: who(req) });
+  changed(res); // the trailer ID or carrier of a trailer in the yard may have changed
 });
 
 app.post("/api/trailers/delete", operator, (req, res) => {
-  yard.unlinkTrailer({ plate: clean(req.body.plate, 20).toUpperCase(), by: who(req) });
-  res.json({ ok: true });
+  yard.unlinkTrailer({ plate: normalizePlate(req.body.plate), by: who(req) });
+  changed(res);
+});
+
+// CSV import. First called with apply: false to preview what would change,
+// then with apply: true to save. Rows with errors are skipped.
+app.post("/api/trailers/import", express.json({ limit: "10mb" }), operator, (req, res) => {
+  const { rows, errors, warnings } = readTrailerCsv(String(req.body.csv ?? ""), yard.getCarriers());
+  const added = [], changes = [];
+  let unchanged = 0;
+  for (const r of rows) {
+    const old = yard.getTrailer(r.plate);
+    if (!old) added.push(r);
+    else if (old.trailerId !== r.trailerId || old.carrier !== r.carrier) {
+      changes.push({ ...r, oldTrailerId: old.trailerId, oldCarrier: old.carrier });
+    } else unchanged++;
+  }
+  const summary = { added: added.length, changed: changes.length, unchanged, skipped: errors.length };
+  if (!req.body.apply) {
+    return res.json({ summary, examples: { added: added.slice(0, 20), changes: changes.slice(0, 50) }, errors, warnings });
+  }
+  yard.importTrailers([...added, ...changes].map(({ plate, trailerId, carrier }) => ({ plate, trailerId, carrier })), who(req));
+  const s = state();
+  for (const l of listeners.keys()) l.write(event(s));
+  res.json({ summary, errors, warnings });
+});
+
+// ---- Carriers (admins) ----
+
+app.post("/api/carriers", auth.requireRole("admin"), (req, res) => {
+  const code = clean(req.body.code, 10).toUpperCase();
+  const name = clean(req.body.name, 40);
+  const color = clean(req.body.color, 7);
+  const err = (!/^[A-Z0-9]{1,10}$/.test(code) && "Code: 1–10 letters or digits.")
+    || (!name && "Name is required.")
+    || (!/^#[0-9a-f]{6}$/i.test(color) && "Color must look like #1a2b3c.");
+  if (err) return res.status(400).json({ error: err });
+  yard.saveCarrier({ code, name, color });
+  changed(res);
+});
+
+app.post("/api/carriers/delete", auth.requireRole("admin"), (req, res) => {
+  yard.deleteCarrier(clean(req.body.code, 10).toUpperCase());
+  changed(res);
 });
 
 // ?trailer=<plate or trailer ID>, ?spot=201, or nothing for the latest changes in the whole yard.
