@@ -6,7 +6,7 @@
 <title>Yard Map</title>
 <style>
 :root{--bg:#f3f4f7;--card:#fff;--ink:#1b2130;--mute:#6a7286;--line:#cfd4de;--accent:#2f6fdb;
---loading:#f2a516;--unloading:#3b82d9;--loaded:#2fa862;--empty:#8b93a5;--paint:#eceff3;
+--paint:#eceff3;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151c;--card:#1c212c;--ink:#eef0f5;--mute:#98a0b3;--line:#333b4c;--accent:#6aa0ff}}
 :root[data-theme="dark"]{--bg:#12151c;--card:#1c212c;--ink:#eef0f5;--mute:#98a0b3;--line:#333b4c;--accent:#6aa0ff}
@@ -19,6 +19,8 @@ h1 small{font-weight:400;color:var(--mute);font-size:13px}
 #q{width:100%;padding:10px 12px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
 #msg{font-size:13px;color:var(--mute);min-height:18px;margin-top:4px}
 .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin-top:2px}
+.legend .items{display:contents}
+.legend .items span{white-space:nowrap}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 main{padding:10px;max-width:2200px;margin:0 auto}
 .lot{background:#3a3e45 radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.5px) 0 0/6px 6px;border:4px solid #5b606a;border-radius:12px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.35)}
@@ -49,7 +51,7 @@ h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#f4d34a;ma
 .pkg .stall{border-right-color:#f4d34a;border-top:3px solid #f4d34a}
 .bay:not(.on) .stall:after{content:"open";position:absolute;left:0;right:0;bottom:5px;font-size:10px;color:rgba(255,255,255,.28)}
 .lbl{position:absolute;left:0;right:0;top:4px;font-size:10px;color:rgba(255,255,255,.45)}
-.trl{position:absolute;inset:4px 5px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:4px 0;color:#fff;overflow:hidden;
+.trl{position:absolute;inset:4px 5px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:4px 0;color:var(--fg,#fff);overflow:hidden;
 background:repeating-linear-gradient(180deg,rgba(0,0,0,.1) 0 2px,transparent 2px 9px),linear-gradient(90deg,color-mix(in srgb,var(--c) 78%,#fff),var(--c) 45%,color-mix(in srgb,var(--c) 80%,#000));
 box-shadow:0 4px 8px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.35);transition:transform .12s}
 .trl .tr{writing-mode:vertical-rl;transform:rotate(180deg);font-size:12px;line-height:1;font-weight:700;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5);flex:1;display:flex;align-items:center}
@@ -67,7 +69,7 @@ box-shadow:0 4px 8px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.35);trans
 #sheet input{width:100%;padding:10px 12px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);margin-bottom:8px}
 .chips{display:flex;gap:6px;margin-bottom:10px}
 .chip{flex:1;padding:9px 2px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px;cursor:pointer}
-.chip.sel{background:var(--c);border-color:var(--c);color:#fff;font-weight:600}
+.chip.sel{background:var(--c);border-color:var(--c);color:var(--fg,#fff);font-weight:600}
 .row{display:flex;gap:8px}
 .btn{flex:1;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-weight:600;cursor:pointer}
 .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -79,10 +81,7 @@ box-shadow:0 4px 8px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.35);trans
 <input id="q" type="search" placeholder="Find trailer number or note…" autocomplete="off">
 <div id="msg"></div>
 <div class="legend">
-<span><i style="background:var(--loading)"></i>Loading</span>
-<span><i style="background:var(--unloading)"></i>Unloading</span>
-<span><i style="background:var(--loaded)"></i>Loaded</span>
-<span><i style="background:var(--empty)"></i>Empty</span>
+<span class="items" id="legend-items"></span>
 <span class="zoom"><button id="zo">−</button><button id="zf">Fit</button><button id="zi">+</button></span>
 </div>
 </header>
@@ -107,38 +106,47 @@ box-shadow:0 4px 8px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.35);trans
 </div>
 </div>
 <script>
-var range=function(a,b,p){var r=[];for(var i=a;i<=b;i++)r.push((p||"")+i);return r};
-var rev=function(a,b){return range(a,b).reverse()};
-var SECTIONS=[
-{ids:["R03"],o:"n",x:520,y:6,cols:1,cw:56,kind:"door",def:"Loading",noun:"Door ",sh:100},
-{ids:["R04"],o:"n",x:1300,y:6,cols:1,cw:56,kind:"door",def:"Loading",noun:"Door ",sh:100},
-{ids:["301","302"],o:"n",x:250,y:436,cols:2,cw:40,kind:"door",def:"Loading",noun:"Door ",sh:100},
-{ids:range(401,406),o:"e",x:1420,y:470,cols:1,cw:124,th:40,kind:"door",def:"Loading",noun:"Door ",sh:100},
-{ids:["215","216"],o:"w",x:66,y:740,cols:1,cw:124,th:40,kind:"door",def:"Loading",noun:"Door ",sh:100},
-{ids:rev(201,214),o:"s",x:230,y:860,cols:14,cw:40,kind:"door",def:"Loading",noun:"Door ",sh:100},
-{ids:["200"],o:"s",x:790,y:860,cols:1,cw:56,kind:"door",def:"Loading",noun:"Door ",sh:100},
-{ids:range(101,110),o:"s",x:930,y:710,cols:10,cw:40,kind:"door",def:"Loading",noun:"Door ",sh:100},
-{ids:["R01"],o:"s",x:1330,y:710,cols:1,cw:56,kind:"door",def:"Loading",noun:"Door ",sh:100},
-{t:"Trailer parking",ids:range(1,24,"P"),def:"Loaded",kind:"park",o:"s",x:190,y:1010,cols:12,cw:40,sh:80,noun:"Parking spot "},
-{t:"Unassigned trailers",ids:range(1,27,"U"),def:"Empty",kind:"pool",o:"s",x:760,y:1010,cols:9,cw:48,sh:64,noun:"Unassigned slot "}
-];
-var STATUS={Loading:"var(--loading)",Unloading:"var(--unloading)",Loaded:"var(--loaded)",Empty:"var(--empty)"};
-var KEY="yardmap-v1",data={},cur=null,curStatus="Loading",def="Loading",sel=null;
-try{data=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){data={}}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){}}
+// Layout, statuses and trailers come from the server (/api/yard).
+var SECTIONS=[],STATUS={},data={},cur=null,curStatus="",def="",sel=null,busy=false;
 function $(id){return document.getElementById(id)}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return"&#"+c.charCodeAt(0)+";"})}
+// Dark text on light status colors (e.g. Undefined), white text otherwise.
+function fg(hex){var n=parseInt(hex.slice(1),16),r=n>>16,g=n>>8&255,b=n&255;return .299*r+.587*g+.114*b>170?"#1b2130":"#fff"}
+function colors(name){var c=STATUS[name]||"#8b93a5";return"--c:"+c+";--fg:"+fg(c)}
 function dwell(ts){var m=Math.floor((Date.now()-ts)/60000);if(m<60)return m+"m";var h=Math.floor(m/60);return h<48?h+"h":Math.floor(h/24)+"d"}
+function apply(st){
+  SECTIONS=st.sections;data=st.placements;STATUS={};
+  st.statuses.forEach(function(s){STATUS[s.name]=s.color});
+  if(sel&&!data[sel])sel=null;
+  legend();render();
+}
+// Talk to the server. On success the reply is the new yard state.
+function api(path,body){
+  busy=true;
+  return fetch(path,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{})
+    .then(function(r){return r.json().then(function(j){
+      if(j.sections)apply(j);
+      if(!r.ok)throw new Error(j.error||"Request failed");
+      return j;
+    })})
+    .catch(function(e){$("msg").textContent=e.message==="Failed to fetch"?"Can't reach the server. Check the connection and try again.":e.message;throw e})
+    .finally(function(){busy=false});
+}
+function legend(){
+  var h="";Object.keys(STATUS).forEach(function(k){h+='<span><i style="background:'+STATUS[k]+'"></i>'+esc(k)+'</span>'});
+  $("legend-items").innerHTML=h;
+}
 function render(){
   var html="",total=0,used=0;
   SECTIONS.forEach(function(s,si){
-    html+='<div class="sec o'+s.o+'" style="--th:'+(s.th||40)+'px;left:'+s.x+'px;top:'+s.y+'px;--cols:'+s.cols+';--cw:'+s.cw+'px;--sh:'+s.sh+'px">'+(s.t?'<h2>'+s.t+'</h2>':'')+'<div class="grid'+(s.kind!=="door"?" pkg":"")+'">';
-    s.ids.forEach(function(id){
+    html+='<div class="sec o'+s.o+'" style="--th:'+(s.th||40)+'px;left:'+s.x+'px;top:'+s.y+'px;--cols:'+s.cols+';--cw:'+s.cw+'px;--sh:'+s.sh+'px">'+(s.title?'<h2>'+esc(s.title)+'</h2>':'')+'<div class="grid'+(s.kind!=="door"?" pkg":"")+'">';
+    s.spots.forEach(function(id){
       total++;var d=data[id];if(d)used++;
-      html+='<button class="bay'+(d?" on":"")+'" data-id="'+id+'" data-s="'+si+'">';
-      if(s.kind==="door")html+='<span class="door"><span class="dr">'+id+'</span></span>';
+      html+='<button class="bay'+(d?" on":"")+'" data-id="'+esc(id)+'" data-s="'+si+'">';
+      if(s.kind==="door")html+='<span class="door"><span class="dr">'+esc(id)+'</span></span>';
       html+='<span class="stall">';
-      if(s.kind!=="door"&&!d)html+='<span class="lbl">'+id+'</span>';
-      if(d)html+='<span class="trl" style="--c:'+STATUS[d.status]+'"><b class="tr"></b><i class="dw">'+dwell(d.since)+'</i></span>';
+      if(s.kind!=="door"&&!d)html+='<span class="lbl">'+esc(id)+'</span>';
+      if(d)html+='<span class="trl" style="'+colors(d.status)+'"><b class="tr"></b><i class="dw">'+dwell(d.since)+'</i></span>';
       html+='</span></button>';
     });
     html+='</div></div>';
@@ -156,9 +164,10 @@ function render(){
   if(sel&&data[sel]&&!$("q").value)$("msg").textContent="Moving "+data[sel].trailer+": tap an open spot to place it, or tap it again to edit";
 }
 function tap(id,si){
+  if(busy)return;
   var d=data[id];
   if(sel&&sel!==id){
-    if(!d){data[id]=data[sel];delete data[sel];sel=null;save();render();return}
+    if(!d){var from=sel;sel=null;api("/api/move",{from:from,to:id}).catch(function(){});return}
     sel=id;render();return;
   }
   if(sel===id){sel=null;render();openSheet(id,si);return}
@@ -166,13 +175,13 @@ function tap(id,si){
   openSheet(id,si);
 }
 function chips(){
-  var h="";Object.keys(STATUS).forEach(function(k){h+='<button class="chip'+(k===curStatus?" sel":"")+'" style="--c:'+STATUS[k]+'" data-k="'+k+'">'+k+'</button>'});
+  var h="";Object.keys(STATUS).forEach(function(k){h+='<button class="chip'+(k===curStatus?" sel":"")+'" style="'+colors(k)+'" data-k="'+esc(k)+'">'+esc(k)+'</button>'});
   $("chips").innerHTML=h;
   var c=document.querySelectorAll(".chip");
   for(var i=0;i<c.length;i++)c[i].onclick=function(){curStatus=this.dataset.k;chips()};
 }
 function openSheet(id,si){
-  cur=id;def=SECTIONS[si].def;var d=data[id];
+  cur=id;def=SECTIONS[si].defaultStatus;var d=data[id];
   $("sh-title").textContent=SECTIONS[si].noun+(/^[PU]\d+$/.test(id)?id.slice(1):id);
   $("f-tr").value=d?d.trailer:"";$("f-note").value=d&&d.note?d.note:"";
   curStatus=d?d.status:def;chips();$("b-clear").style.display=d?"":"none";
@@ -181,15 +190,11 @@ function openSheet(id,si){
 }
 function closeSheet(){$("sheet").classList.remove("open");cur=null;document.activeElement&&document.activeElement.blur()}
 $("b-cancel").onclick=closeSheet;
-$("b-clear").onclick=function(){delete data[cur];save();closeSheet();render()};
+$("b-clear").onclick=function(){api("/api/clear",{spot:cur}).then(closeSheet,function(){})};
 $("b-save").onclick=function(){
   var t=$("f-tr").value.trim().toUpperCase();
   if(!t){$("f-tr").focus();return}
-  var since=Date.now();
-  Object.keys(data).forEach(function(k){if(k!==cur&&data[k].trailer===t){since=data[k].since;delete data[k]}});
-  if(data[cur]&&data[cur].trailer===t)since=data[cur].since;
-  data[cur]={trailer:t,status:curStatus,note:$("f-note").value.trim(),since:since};
-  save();closeSheet();render();
+  api("/api/place",{spot:cur,trailer:t,status:curStatus,note:$("f-note").value.trim()}).then(closeSheet,function(){});
 };
 function find(){
   var q=$("q").value.trim().toUpperCase(),msg=$("msg");
@@ -212,8 +217,10 @@ $("zf").onclick=function(){auto=true;fit(true)};
 window.addEventListener("resize",function(){if(auto)fit()});
 fit();
 $("q").oninput=find;
-render();
-setInterval(function(){if(!cur&&!$("q").value&&!sel)render()},60000);
+$("msg").textContent="Loading…";
+api("/api/yard").catch(function(){});
+// Refresh once a minute so dwell times and other people's changes show up.
+setInterval(function(){if(!cur&&!$("q").value&&!sel&&!busy)api("/api/yard").catch(function(){})},60000);
 </script>
 </body>
 </html>

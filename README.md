@@ -13,11 +13,27 @@ npm start          # http://localhost:3000
 npm run dev        # same, restarts automatically when files change
 ```
 
-Set `PORT` to use another port.
+Settings (environment variables):
 
-## Layout
+| Variable | Default | Meaning |
+|---|---|---|
+| `PORT` | `3000` | Web server port |
+| `DATA_DIR` | `./data` | Folder holding the database file `yard.db` |
+
+The database is created on first start, with the original yard layout and
+statuses (Loading, Unloading, Loaded, Empty, Undefined).
+
+## Code layout
 
 | Path | What it is |
 |---|---|
-| `server.js` | Web server |
+| `server.js` | Web server and the `/api/...` endpoints |
+| `db.js` | SQLite schema, upgrades (`migrations`) and yard queries |
+| `default-layout.js` | Starting yard layout, copied into the database on first run |
 | `public/index.html` | The yard map page (started as the `yard-lot3.html` prototype) |
+
+## Changing the database schema
+
+Add a new SQL string at the end of `migrations` in `db.js`. On startup the app
+runs any migrations the database hasn't had yet. Never edit a migration that
+has already been run on the real server.
