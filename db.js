@@ -73,6 +73,27 @@ const migrations = [
   UPDATE sections SET geometry = json_set(geometry, '$.sh', 110) WHERE kind = 'park' AND json_extract(geometry, '$.sh') = 80;
   UPDATE sections SET geometry = json_set(geometry, '$.sh', 96) WHERE kind = 'pool' AND json_extract(geometry, '$.sh') = 64;
   `,
+  `
+  CREATE TABLE users (
+    id              INTEGER PRIMARY KEY,
+    username        TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    name            TEXT NOT NULL,              -- shown in the header and history
+    role            TEXT NOT NULL,              -- viewer | worker | operator | admin
+    password_hash   TEXT NOT NULL,
+    must_change_pw  INTEGER NOT NULL DEFAULT 1, -- 1 after an admin set a temporary password
+    active          INTEGER NOT NULL DEFAULT 1,
+    created_at      INTEGER NOT NULL,
+    last_login_at   INTEGER
+  );
+  -- Logged-in browsers. Only a hash of the cookie value is stored.
+  CREATE TABLE sessions (
+    token_hash TEXT PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+  CREATE INDEX sessions_user ON sessions(user_id);
+  `,
 ];
 
 function migrate() {

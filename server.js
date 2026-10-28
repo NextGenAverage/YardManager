@@ -1,13 +1,35 @@
-// Yard Manager web server: serves the map page and the shared yard API.
+// Yard Manager web server: serves the pages and the shared yard API.
 const path = require("path");
 const express = require("express");
 const yard = require("./db");
+const auth = require("./auth");
+const authRoutes = require("./auth-routes");
 
 const PORT = Number(process.env.PORT) || 3000;
+const PUBLIC = path.join(__dirname, "public");
 
 const app = express();
+app.set("trust proxy", "loopback"); // correct client address and https when behind a local reverse proxy
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
+app.use(auth.loadUser);
+
+// Changes must be sent as JSON. Browsers can't send JSON to another site
+// without its permission, so other web pages can't act as a logged-in user.
+app.use("/api", (req, res, next) => {
+  if (req.method === "POST" && !req.is("application/json")) return res.status(415).json({ error: "Send JSON." });
+  next();
+});
+
+// Pages that need a login send you to the login page first.
+function page(file) {
+  return (req, res) => {
+    if (!req.user || req.user.must_change_pw) return res.redirect("/login.html");
+    res.sendFile(path.join(PUBLIC, file));
+  };
+}
+app.get(["/", "/index.html"], page("index.html"));
+app.get("/users.html", page("users.html"));
+app.use(express.static(PUBLIC, { index: false }));
 
 function state() {
   return {
@@ -32,34 +54,50 @@ function checkTime(t) {
 
 // Live updates (Server-Sent Events): every open map keeps /api/events open
 // and gets the whole yard state again each time something changes.
-const listeners = new Set();
+const listeners = new Map(); // response -> user id
 const event = (s = state()) => `data: ${JSON.stringify(s)}\n\n`;
 
-app.get("/api/events", (req, res) => {
+app.get("/api/events", auth.requireRole("viewer"), (req, res) => {
   res.set({ "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "X-Accel-Buffering": "no" });
   res.flushHeaders();
   res.write("retry: 3000\n" + event()); // browsers reconnect after 3 s if the line drops
-  listeners.add(res);
+  listeners.set(res, req.user.id);
   req.on("close", () => listeners.delete(res));
 });
 
+// Close a user's live connections, e.g. after they were logged out by an admin.
+// Their browser then reconnects, gets "please log in" and goes to the login page.
+function disconnect(userId) {
+  for (const [res, id] of listeners) if (id === userId) res.end();
+}
+
 // A comment line every 25 s stops proxies and firewalls closing idle connections.
-setInterval(() => listeners.forEach((res) => res.write(": ping\n\n")), 25000);
+setInterval(() => {
+  for (const res of listeners.keys()) res.write(": ping\n\n");
+}, 25000);
 
 // Reply to the request that changed the yard, and tell everyone else.
 function changed(res) {
   const s = state();
   const msg = event(s);
-  listeners.forEach((l) => l.write(msg));
+  for (const l of listeners.keys()) l.write(msg);
   res.json(s);
 }
 
-app.get("/api/yard", (req, res) => res.json(state()));
+app.use(authRoutes({ disconnect }));
 
-// The logged-in user's name, recorded in the history. Logins come in a later step.
-const who = (req) => null;
+const viewer = auth.requireRole("viewer");
+const worker = auth.requireRole("worker");
+const operator = auth.requireRole("operator");
 
-app.post("/api/place", (req, res) => {
+// The logged-in user's name, recorded in the history.
+const who = (req) => req.user.name;
+
+app.get("/api/yard", viewer, (_req, res) => res.json(state()));
+
+// Add a trailer or edit the one on a spot. Workers may only change status,
+// note and damaged of the trailer already there.
+app.post("/api/place", worker, (req, res) => {
   const spot = clean(req.body.spot, 20);
   const trailer = clean(req.body.trailer, 20).toUpperCase();
   const status = clean(req.body.status, 40);
@@ -70,11 +108,17 @@ app.post("/api/place", (req, res) => {
     || (!yard.statusExists(status) && "Unknown status.")
     || checkTime(arrivedAt);
   if (err) return res.status(400).json({ error: err });
+  if (!auth.atLeast(req.user.role, "operator")) {
+    const here = yard.getPlacements()[spot];
+    if (!here || here.trailer !== trailer || arrivedAt !== undefined) {
+      return res.status(403).json({ error: "Workers can change status, note and damaged only. Ask an operator for other changes." });
+    }
+  }
   yard.placeTrailer({ spot, trailer, status, note, damaged: !!req.body.damaged, arrivedAt, by: who(req) });
   changed(res);
 });
 
-app.post("/api/move", (req, res) => {
+app.post("/api/move", operator, (req, res) => {
   const from = clean(req.body.from, 20);
   const to = clean(req.body.to, 20);
   const err = checkSpot(from) || checkSpot(to);
@@ -84,7 +128,7 @@ app.post("/api/move", (req, res) => {
 });
 
 // The trailer has left the yard.
-app.post("/api/depart", (req, res) => {
+app.post("/api/depart", operator, (req, res) => {
   const spot = clean(req.body.spot, 20);
   const err = checkSpot(spot);
   if (err) return res.status(400).json({ error: err });
@@ -93,7 +137,7 @@ app.post("/api/depart", (req, res) => {
 });
 
 // The trailer was entered by mistake.
-app.post("/api/remove", (req, res) => {
+app.post("/api/remove", operator, (req, res) => {
   const spot = clean(req.body.spot, 20);
   const err = checkSpot(spot);
   if (err) return res.status(400).json({ error: err });
@@ -101,7 +145,7 @@ app.post("/api/remove", (req, res) => {
   changed(res);
 });
 
-app.post("/api/visit-times", (req, res) => {
+app.post("/api/visit-times", operator, (req, res) => {
   const id = Number(req.body.id);
   const arrivedAt = time(req.body.arrivedAt);
   const departedAt = time(req.body.departedAt);
@@ -112,7 +156,7 @@ app.post("/api/visit-times", (req, res) => {
 });
 
 // ?trailer=ABC123, ?spot=201, or nothing for the latest changes in the whole yard.
-app.get("/api/history", (req, res) => {
+app.get("/api/history", viewer, (req, res) => {
   res.json(yard.getHistory({
     trailer: clean(req.query.trailer, 20).toUpperCase() || undefined,
     spot: clean(req.query.spot, 20) || undefined,
@@ -128,4 +172,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`Yard Manager running on http://localhost:${PORT}`);
+  if (!auth.countActiveAdmins()) {
+    console.log("No admin user yet. Create one with:  npm run create-admin -- <username> \"<Full name>\"");
+  }
 });

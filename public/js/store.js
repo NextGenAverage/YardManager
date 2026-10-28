@@ -8,9 +8,15 @@ export const yard = {
 };
 
 export const ui = {
+  user: null,   // logged-in user: { name, username, role }
   moving: null, // spot ID of the trailer lifted with "Move", waiting for a target
   busy: false,  // a request to the server is in progress
 };
+
+// Roles, lowest first; each can do everything the ones before it can.
+// The server checks the same rules; this only decides which buttons to show.
+const ROLES = ["viewer", "worker", "operator", "admin"];
+export const can = (role) => ROLES.indexOf(ui.user?.role) >= ROLES.indexOf(role);
 
 const listeners = [];
 export const onYardChange = (fn) => listeners.push(fn);

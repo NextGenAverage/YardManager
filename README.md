@@ -23,11 +23,41 @@ Settings (environment variables):
 The database is created on first start, with the original yard layout and
 statuses (Loading, Unloading, Loaded, Empty, Undefined).
 
+## Users and roles
+
+Everyone logs in. Create the first admin from the project folder:
+
+```sh
+npm run create-admin -- <username> "<Full name>"
+```
+
+It prints a temporary password; the admin chooses their own at first login.
+After that, admins add users on the **Users** page (link in the map header).
+New users also get a temporary password to change at first login.
+
+| Role | Can |
+|---|---|
+| Viewer | See the map and history (e.g. a screen in the office) |
+| Worker | Also change status, damaged and note on trailers in the yard |
+| Operator | Also add, move, depart and remove trailers, and correct times |
+| Admin | Also manage users |
+
+- Logins last 12 hours (one shift); viewer logins last 30 days and renew
+  while in use, so a wall screen stays logged in.
+- Changing someone's role, deactivating them or resetting their password
+  logs them out everywhere.
+- 5 wrong passwords lock that username for 5 minutes.
+- **Locked out?** Run `npm run create-admin -- <username>` for an existing
+  user: they become an active admin with a new temporary password.
+
 ## Code layout
 
 | Path | What it is |
 |---|---|
-| `server.js` | Web server and the `/api/...` endpoints |
+| `server.js` | Web server and the yard `/api/...` endpoints, with the role each needs |
+| `auth.js` | Passwords, sessions, roles and user accounts |
+| `auth-routes.js` | Login, logout, password change and the admin's user endpoints |
+| `scripts/create-admin.js` | Creates the first admin / recovers admin access |
 | `db.js` | SQLite schema, upgrades (`migrations`) and yard queries |
 | `default-layout.js` | Starting yard layout, copied into the database on first run |
 | `public/index.html` | The yard map page: markup only (started as the `yard-lot3.html` prototype) |
@@ -40,6 +70,8 @@ statuses (Loading, Unloading, Loaded, Empty, Undefined).
 | `public/js/api.js` | Requests to the server |
 | `public/js/store.js` | The yard state shared by the modules above |
 | `public/js/util.js` | Small helpers (escaping, time formatting) |
+| `public/login.html`, `public/js/login.js` | Login and choosing a new password |
+| `public/users.html`, `public/js/users.js` | User admin page |
 
 The page uses plain JavaScript modules (`import` / `export`), so there is no
 build step: edit a file and reload the browser.

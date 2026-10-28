@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Yard Map: log in</title>
+  <link rel="icon" href="favicon.svg">
+  <link rel="stylesheet" href="css/yard.css">
+  <script type="module" src="js/login.js"></script>
+</head>
+<body class="center-page">
+
+  <!-- Log in -->
+  <form class="card" id="login" hidden>
+    <h1>Yard Map</h1>
+    <label>Username <input name="username" autocomplete="username" autocapitalize="none" required></label>
+    <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+    <p class="error" id="login-error"></p>
+    <button class="btn pri">Log in</button>
+  </form>
+
+  <!-- Choose a new password (first login, or "Password" in the map header) -->
+  <form class="card" id="change" hidden>
+    <h1>Choose a password</h1>
+    <p id="change-intro"></p>
+    <label id="current-wrap">Current password <input name="current" type="password" autocomplete="current-password"></label>
+    <label>New password <input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+    <label>New password again <input name="again" type="password" autocomplete="new-password" minlength="8" required></label>
+    <p class="error" id="change-error"></p>
+    <div class="row">
+      <a class="btn" href="/" id="change-cancel">Cancel</a>
+      <button class="btn pri">Save password</button>
+    </div>
+  </form>
+
+</body>
+</html>

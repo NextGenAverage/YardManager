@@ -9,6 +9,7 @@ export async function api(path, body) {
     const res = await fetch(path, body
       ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
       : {});
+    if (res.status === 401) location.href = "/login.html"; // session ended
     const json = await res.json();
     if (json.sections) setYard(json);
     if (!res.ok) throw new Error(json.error || "Request failed");

@@ -1,7 +1,7 @@
 // The history panel: recent changes in the whole yard, or the visits and
 // changes for one trailer or one spot.
 import { $, esc, formatTime, duration, toLocalInput, fromLocalInput } from "./util.js";
-import { spotName } from "./store.js";
+import { can, spotName } from "./store.js";
 import { send } from "./api.js";
 
 let current = null; // what the open panel shows: {}, { trailer, spot? } or { spot }
@@ -45,7 +45,8 @@ function eventsHtml(events) {
   ).join("") + "</ul>";
 }
 
-// A trailer's stays in the yard. Departed visits get a hidden "Fix times" form.
+// A trailer's stays in the yard. For operators, departed visits get a hidden
+// "Fix times" form.
 function visitsHtml(visits) {
   return "<ul>" + visits.map((v) => {
     const end = v.departed_at;
@@ -53,8 +54,9 @@ function visitsHtml(visits) {
     if (!end) {
       return h + `<span>Now</span><span>In the yard at ${place(v.spot_id)} · ${duration(Date.now() - v.arrived_at)}</span></li>`;
     }
-    h += `<span>Departed</span><span>${formatTime(end)} from ${place(v.spot_id)} · stayed ${duration(end - v.arrived_at)} `
-      + `<button class="link" data-fix="${v.id}">Fix times</button></span>`;
+    h += `<span>Departed</span><span>${formatTime(end)} from ${place(v.spot_id)} · stayed ${duration(end - v.arrived_at)}`;
+    if (!can("operator")) return h + "</span></li>";
+    h += ` <button class="link" data-fix="${v.id}">Fix times</button></span>`;
     h += `<form data-visit="${v.id}" hidden>`
       + `<input type="datetime-local" name="a" value="${toLocalInput(v.arrived_at)}" aria-label="Arrived">`
       + `<input type="datetime-local" name="d" value="${toLocalInput(end)}" aria-label="Departed">`

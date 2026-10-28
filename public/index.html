@@ -12,8 +12,16 @@
 
   <header>
     <h1>
-      Yard Map
-      <small><span id="live" class="live off">Connecting…</span> · <span id="count"></span></small>
+      <span>
+        Yard Map
+        <small><span id="live" class="live off">Connecting…</span> · <span id="count"></span></small>
+      </span>
+      <small class="user">
+        <span id="me"></span> ·
+        <a href="/login.html#change">Password</a> ·
+        <span id="users-link" hidden><a href="/users.html">Users</a> ·</span>
+        <button class="link" id="b-logout">Log out</button>
+      </small>
     </h1>
     <input id="q" type="search" placeholder="Find trailer number or note…" autocomplete="off">
     <div id="msg"></div>

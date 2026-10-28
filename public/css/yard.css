@@ -793,3 +793,201 @@ h2 {   /* section title, e.g. "TRAILER PARKING" */
   font: inherit;
   font-size: 14px;
 }
+
+
+/* ============================================================
+   Logged-in user in the map header
+   ============================================================ */
+
+h1 {
+  flex-wrap: wrap;
+  gap: 0 12px;
+}
+
+h1 .user a,
+h1 .user .link {
+  color: var(--mute);
+  font-size: inherit;
+}
+
+/* Fields the user's role may not change */
+#sheet input:disabled,
+.chip:disabled {
+  opacity: .6;
+  cursor: default;
+}
+
+a.btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
+
+/* ============================================================
+   Login page
+   ============================================================ */
+
+.center-page {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 16px;
+}
+
+.card {
+  width: 100%;
+  max-width: 360px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .2);
+}
+
+.card h1 {
+  margin-bottom: 14px;
+}
+
+.card label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--mute);
+}
+
+.card input,
+.add-user input,
+.add-user select,
+.users select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.card .btn {
+  width: 100%;
+}
+
+.error {
+  min-height: 1em;
+  margin: 6px 0;
+  font-size: 14px;
+  color: var(--danger);
+}
+
+
+/* ============================================================
+   Users page (admins)
+   ============================================================ */
+
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.page-head h1 {
+  margin: 0;
+}
+
+.page-head .btn {
+  flex: 0 0 auto;
+  padding: 7px 14px;
+}
+
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.page-h2 {
+  margin: 22px 0 8px;
+  font-size: 15px;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
+}
+
+.notice {
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.notice code {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: .05em;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.users {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.users th,
+.users td {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.users th {
+  font-size: 12px;
+  color: var(--mute);
+}
+
+.users select {
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 14px;
+}
+
+.users tr.inactive td {
+  color: var(--mute);
+  text-decoration: line-through;
+}
+
+.users tr.inactive td:nth-child(n+3) {
+  text-decoration: none;
+}
+
+.add-user {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.add-user input,
+.add-user select {
+  flex: 1;
+  min-width: 150px;
+  margin: 0;
+}
+
+.add-user .btn {
+  flex: 0 0 auto;
+  padding: 10px 20px;
+}
+
+.role-help {
+  padding-left: 18px;
+  font-size: 14px;
+  color: var(--mute);
+}
