@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Yard Map</title>
   <link rel="icon" href="favicon.svg">
+  <script src="js/theme.js"></script>
   <link rel="stylesheet" href="css/yard.css">
   <script type="module" src="js/main.js"></script>
 </head>
@@ -20,7 +21,8 @@
         <span id="me"></span> ·
         <a href="/login.html#change">Password</a> ·
         <span id="manage-link" hidden><a href="/manage.html">Manage</a> ·</span>
-        <button class="link" id="b-logout">Log out</button>
+        <button class="link" id="b-logout">Log out</button> ·
+        <select id="theme-pick" aria-label="Color theme"></select>
       </small>
     </h1>
     <input id="q" type="search" placeholder="Find reg. number, trailer ID, carrier or note…" autocomplete="off">

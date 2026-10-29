@@ -12,6 +12,22 @@
   --paint: #eceff3;        /* white lines on the asphalt */
   --yellow: #f4d34a;       /* parking lines and section titles */
   --danger: #d64545;
+  /* The yard drawing (themes change these, status colors stay the same) */
+  --lot: #3a3e45;          /* asphalt */
+  --lot-edge: #5b606a;
+  --bld: #aab0b9;          /* buildings */
+  --bld-line: #9aa0a8;
+  --bld-edge: #7b818b;
+  --bld-ink: #3c424c;
+  --fence: #8d939d;
+  --street: #2b2e33;
+  --street-edge: #555b66;
+  --sign: #d3d8df;         /* door sign */
+  --sign-line: #aab0ba;
+  --sign-ink: #2a2f38;
+  --sign-on: #1d2026;      /* door sign with a trailer */
+  --sign-on-2: #454c58;
+  --sign-on-ink: #ffd54a;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -186,8 +202,8 @@ main > .lot:last-child {
 /* Asphalt background, used by the map and the side panel */
 .lot {
   overflow: hidden;
-  background: #3a3e45 radial-gradient(rgba(255, 255, 255, .05) 1px, transparent 1.5px) 0 0 / 6px 6px;
-  border: 4px solid #5b606a;
+  background: var(--lot) radial-gradient(rgba(255, 255, 255, .05) 1px, transparent 1.5px) 0 0 / 6px 6px;
+  border: 4px solid var(--lot-edge);
   border-radius: 12px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, .35);
 }
@@ -258,8 +274,8 @@ main > .lot:last-child {
 /* Warehouse buildings */
 .bld {
   position: absolute;
-  background: repeating-linear-gradient(90deg, #aab0b9 0 38px, #9aa0a8 38px 40px);
-  color: #3c424c;
+  background: repeating-linear-gradient(90deg, var(--bld) 0 38px, var(--bld-line) 38px 40px);
+  color: var(--bld-ink);
 }
 
 .bld.hall {
@@ -268,14 +284,14 @@ main > .lot:last-child {
   justify-content: center;
   font-weight: 800;
   letter-spacing: .35em;
-  border-bottom: 4px solid #7b818b;
+  border-bottom: 4px solid var(--bld-edge);
 }
 
 /* Fence along the bottom of the lot; street parking is outside it */
 .fence {
   height: 9px;
   margin-top: 6px;
-  background: repeating-linear-gradient(90deg, #8d939d 0 3px, transparent 3px 14px);
+  background: repeating-linear-gradient(90deg, var(--fence) 0 3px, transparent 3px 14px);
 }
 
 
@@ -327,21 +343,21 @@ h2 {   /* section title, e.g. "TRAILER PARKING" */
 .door {
   display: block;
   padding: 4px 4px 0;
-  background: #9aa0a8;
+  background: var(--bld-line);
 }
 
 .dr {
   display: block;
   height: 24px;
   border-radius: 3px 3px 0 0;
-  background: repeating-linear-gradient(180deg, #d3d8df 0 3px, #aab0ba 3px 4px);
-  color: #2a2f38;
+  background: repeating-linear-gradient(180deg, var(--sign) 0 3px, var(--sign-line) 3px 4px);
+  color: var(--sign-ink);
   font: 700 12px/24px system-ui, sans-serif;
 }
 
 .bay.taken .dr {   /* door in use: dark sign, yellow number */
-  background: linear-gradient(#1d2026, #454c58);
-  color: #ffd54a;
+  background: linear-gradient(var(--sign-on), var(--sign-on-2));
+  color: var(--sign-on-ink);
 }
 
 /* Parking stall */
@@ -1237,8 +1253,8 @@ a.btn {
 /* Street parking: a strip of road below the map, outside the fence */
 .street {
   padding: 10px 0 6px;
-  border-top: 4px solid #555b66;
-  background: #2b2e33 radial-gradient(rgba(255, 255, 255, .04) 1px, transparent 1.5px) 0 0 / 6px 6px;
+  border-top: 4px solid var(--street-edge);
+  background: var(--street) radial-gradient(rgba(255, 255, 255, .04) 1px, transparent 1.5px) 0 0 / 6px 6px;
 }
 
 .street-scene {
@@ -1818,11 +1834,11 @@ input[type="datetime-local"]:not(:disabled) {
   top: 1px;
   width: 20px;
   height: 18px;
-  fill: #aab0b9;
+  fill: var(--bld);
 }
 
 .trk-door {
-  fill: #3a3e45;
+  fill: var(--lot);
 }
 
 /* On its way: the truck bobs gently */
@@ -1874,4 +1890,126 @@ input[type="datetime-local"]:not(:disabled) {
     flex: 0 0 220px;
     margin-bottom: 0;
   }
+}
+
+
+/* ============================================================
+   Themes (picked in the header, remembered per device: theme.js).
+   Classic is the default above. Status and carrier colors stay the
+   same in every theme, since they carry meaning.
+   ============================================================ */
+
+/* 💖 Pink: bubblegum page, rose yard, pink buildings and parking lines */
+:root[data-theme="pink"] {
+  --bg: #fff0f6;
+  --card: #ffffff;
+  --ink: #4a1631;
+  --mute: #a0577a;
+  --line: #f5c2d9;
+  --accent: #e8458b;
+  --danger: #d6336c;
+  --paint: #ffe4f1;
+  --yellow: #ff8cc6;
+  --lot: #5e2847;
+  --lot-edge: #e8458b;
+  --bld: #f8bbd9;
+  --bld-line: #f48fb1;
+  --bld-edge: #ec407a;
+  --bld-ink: #880e4f;
+  --fence: #f48fb1;
+  --street: #4a1f37;
+  --street-edge: #c2185b;
+  --sign: #ffd6e8;
+  --sign-line: #f8a5c8;
+  --sign-ink: #880e4f;
+  --sign-on: #880e4f;
+  --sign-on-2: #c2185b;
+  --sign-on-ink: #fff0f6;
+}
+
+/* 🌊 Ocean: deep navy and teal, a harbour at night */
+:root[data-theme="ocean"] {
+  --bg: #071a2b;
+  --card: #0d2840;
+  --ink: #e3f2fd;
+  --mute: #7fa6c4;
+  --line: #1d4466;
+  --accent: #26c6da;
+  --danger: #ff6b6b;
+  --paint: #d8f3ff;
+  --yellow: #4dd0e1;
+  --lot: #0f3550;
+  --lot-edge: #1e5f86;
+  --bld: #b3d7e6;
+  --bld-line: #9cc4d6;
+  --bld-edge: #5a8fab;
+  --bld-ink: #0d3b55;
+  --fence: #5a8fab;
+  --street: #0a2a40;
+  --street-edge: #1e5f86;
+  --sign: #cfe8f3;
+  --sign-line: #a9cfe0;
+  --sign-ink: #0d3b55;
+  --sign-on: #062033;
+  --sign-on-2: #0f4c75;
+  --sign-on-ink: #4dd0e1;
+}
+
+/* 👾 Retro: green-on-black terminal */
+:root[data-theme="retro"] {
+  --bg: #050805;
+  --card: #0b120b;
+  --ink: #9cff9c;
+  --mute: #4fa34f;
+  --line: #1d3a1d;
+  --accent: #39ff14;
+  --danger: #ff5555;
+  --paint: #39ff14;
+  --yellow: #b3ff00;
+  --lot: #0a140a;
+  --lot-edge: #1f5f1f;
+  --bld: #143814;
+  --bld-line: #1b4a1b;
+  --bld-edge: #2e7d32;
+  --bld-ink: #39ff14;
+  --fence: #2e7d32;
+  --street: #070f07;
+  --street-edge: #1f5f1f;
+  --sign: #1b4a1b;
+  --sign-line: #143814;
+  --sign-ink: #9cff9c;
+  --sign-on: #39ff14;
+  --sign-on-2: #2e7d32;
+  --sign-on-ink: #041004;
+}
+
+:root[data-theme="retro"] body {
+  font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+}
+
+:root[data-theme="retro"] .btn.pri,
+:root[data-theme="retro"] .zoom button {
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+:root[data-theme="retro"] .btn.pri {
+  color: #041004;
+}
+
+/* Theme picker in the header */
+#theme-pick {
+  padding: 1px 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--mute);
+  font: inherit;
+  font-size: 12px;
+}
+
+.head-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }

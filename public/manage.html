@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Yard Map: manage</title>
   <link rel="icon" href="favicon.svg">
+  <script src="js/theme.js"></script>
   <link rel="stylesheet" href="css/yard.css">
   <script type="module" src="js/manage.js"></script>
 </head>
@@ -12,7 +13,10 @@
 
   <header class="page-head">
     <h1>Manage</h1>
-    <a class="btn" href="/">Back to map</a>
+    <span class="head-right">
+      <select id="theme-pick" aria-label="Color theme"></select>
+      <a class="btn" href="/">Back to map</a>
+    </span>
   </header>
 
   <!-- Tabs: shown according to role (manage.js). Later steps add more here. -->

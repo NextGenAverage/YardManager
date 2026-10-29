@@ -18,6 +18,7 @@ Built with **Node.js**, **Express** and **SQLite**, plus a plain HTML/JavaScript
 - 📡 **Live updates:** every open map changes instantly, with a Live/Offline indicator
 - 🎞️ **Smooth changes:** moved trailers glide to their new spot, new ones pop in, departed ones fade out, and status colors blend (off when the device is set to *reduce motion*)
 - 📱 **Works on phones, tablets, PCs and wall screens**, with zoom that remembers your choice
+- 🎨 **Color themes:** Classic, 💖 Pink, 🌊 Ocean and 👾 Retro, picked in the header and remembered per device. Status colors stay the same in every theme. Themes are at the end of `public/css/yard.css`; a new one is a block of color variables plus a line in `public/js/theme.js`.
 
 ### 📦 Trailers and arrivals
 - 🔗 **Trailer register:** each reg. number is linked to its trailer ID and carrier, filled in automatically
