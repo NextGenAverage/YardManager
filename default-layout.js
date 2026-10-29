@@ -29,8 +29,8 @@ const sections = [
   { ...parking, spots: rev(8, 13, "P"), o: "w", x: 52, y: 795, cols: 1, cw: 130, sh: 130, th: 50 },
   // P14-P18: left of the warehouse, near the top.
   { ...parking, spots: range(14, 18, "P"), o: "s", x: 530, y: 140, cols: 5, cw: 48, sh: 110 },
-  { title: "Unassigned trailers", spots: range(1, 20, "U"), kind: "pool", defaultStatus: "Undefined",
-    noun: "Unassigned slot ", o: "s", x: 760, y: 1010, cols: 9, cw: 48, sh: 96 },
+  { title: "Delayed trailers", spots: range(1, 20, "U"), kind: "pool", defaultStatus: "Delayed",
+    noun: "Delayed slot ", o: "s", x: 760, y: 1010, cols: 9, cw: 48, sh: 96 },
   // Street parking outside the fence: 8 spots along the curb, trailers lying sideways.
   { title: "Street parking", spots: range(1, 8, "S"), kind: "street", defaultStatus: "Undefined",
     noun: "Street spot ", o: "e", x: 10, y: 6, cols: 8, cw: 190, sh: 190, th: 56 },

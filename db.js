@@ -329,6 +329,15 @@ const migrations = [
     value TEXT NOT NULL
   );
   `,
+  // New status "Delayed" (purple). Only for a database that already has its
+  // statuses: on a new install the statuses are created later by seed(), which
+  // includes Delayed, and an early row here would make seed() skip the rest.
+  (db) => {
+    const count = db.prepare("SELECT COUNT(*) n FROM statuses").get().n;
+    if (!count) return;
+    const sort = db.prepare("SELECT MAX(sort) m FROM statuses").get().m + 1;
+    db.prepare("INSERT OR IGNORE INTO statuses (name, color, sort) VALUES ('Delayed', '#8e44ad', ?)").run(sort);
+  },
 ];
 
 function migrate() {
@@ -354,6 +363,7 @@ function seed() {
       ["Loaded", "#2fa862"],
       ["Empty", "#8b93a5"],
       ["Undefined", "#fffb00"],
+      ["Delayed", "#8e44ad"],
     ].forEach(([name, color], i) => status.run(name, color, i));
 
     const section =

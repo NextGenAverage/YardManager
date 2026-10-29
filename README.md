@@ -10,7 +10,7 @@ Built with **Node.js**, **Express** and **SQLite**, plus a plain HTML/JavaScript
 
 ### 🗺️ The yard map
 - 🚚 **Every trailer on the map** with its reg. number, a carrier badge (`DSV`, `INT`…) and how long it has been there
-- 🎨 **Status colors:** Loading, Unloading, Loaded, Empty, Undefined
+- 🎨 **Status colors:** Loading, Unloading, Loaded, Empty, Undefined, Delayed
 - ⚠️ **Damaged marker**, a red outline that keeps the status color
 - ⏰ **Late marker** when a trailer is past its planned departure
 - 🔍 **Search** by reg. number, trailer ID, carrier or note
@@ -76,7 +76,7 @@ Settings go in a file called **`.env`** in the project folder: copy **`.env.exam
 | `BACKUP_TIME` | `02:00` | Time of the nightly backup |
 | `BACKUP_KEEP` | `30` | How many backups to keep |
 
-The database is created on first start with the starting layout from `default-layout.js` and the five statuses. 💾 `data/` is not in git, so the yard's data, users and passwords stay on the server.
+The database is created on first start with the starting layout from `default-layout.js` and the six statuses. 💾 `data/` is not in git, so the yard's data, users and passwords stay on the server.
 
 ### 🔒 HTTPS
 
@@ -194,7 +194,7 @@ The map shows each trailer's **reg. number** (licence plate) with a small **carr
 |---|---|
 | 🚪 Doors | On the map, with door signs |
 | 🅿️ Parking | On the map, yellow lines |
-| 📋 Unassigned | In the side panel next to the map |
+| 📋 Unassigned / Delayed | In the side panel next to the map (in the starting layout: *Delayed trailers*) |
 | 🛣️ Street parking | Below the map, outside the fence |
 
 ---

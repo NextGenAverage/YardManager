@@ -621,6 +621,7 @@ h2 {   /* section title, e.g. "TRAILER PARKING" */
 /* Status chips and the Damaged toggle */
 .chips {
   display: flex;
+  flex-wrap: wrap;   /* six statuses: wrap to two rows on narrow phones */
   gap: 6px;
   margin-bottom: 10px;
 }
@@ -2012,4 +2013,9 @@ input[type="datetime-local"]:not(:disabled) {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* Status chips need room for their name; they wrap instead of squeezing */
+.chips .chip {
+  flex: 1 1 80px;
 }
