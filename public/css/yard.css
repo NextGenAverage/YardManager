@@ -1899,32 +1899,32 @@ input[type="datetime-local"]:not(:disabled) {
    same in every theme, since they carry meaning.
    ============================================================ */
 
-/* 💖 Pink: bubblegum page, rose yard, pink buildings and parking lines */
+/* 💖 Pink: dusty rose page and yard, soft pink buildings and lines */
 :root[data-theme="pink"] {
-  --bg: #fff0f6;
+  --bg: #fbf3f6;
   --card: #ffffff;
-  --ink: #4a1631;
-  --mute: #a0577a;
-  --line: #f5c2d9;
-  --accent: #e8458b;
-  --danger: #d6336c;
-  --paint: #ffe4f1;
-  --yellow: #ff8cc6;
-  --lot: #5e2847;
-  --lot-edge: #e8458b;
-  --bld: #f8bbd9;
-  --bld-line: #f48fb1;
-  --bld-edge: #ec407a;
-  --bld-ink: #880e4f;
-  --fence: #f48fb1;
-  --street: #4a1f37;
-  --street-edge: #c2185b;
-  --sign: #ffd6e8;
-  --sign-line: #f8a5c8;
-  --sign-ink: #880e4f;
-  --sign-on: #880e4f;
-  --sign-on-2: #c2185b;
-  --sign-on-ink: #fff0f6;
+  --ink: #4a2a3a;
+  --mute: #8f6b7c;
+  --line: #ead6df;
+  --accent: #c45c8a;
+  --danger: #c2405f;
+  --paint: #f6e9ef;
+  --yellow: #e3a6c2;
+  --lot: #4d3a45;
+  --lot-edge: #8a6475;
+  --bld: #e6c7d4;
+  --bld-line: #d9b3c3;
+  --bld-edge: #b98aa0;
+  --bld-ink: #6b3a52;
+  --fence: #b98aa0;
+  --street: #3f3039;
+  --street-edge: #8a6475;
+  --sign: #f2dfe7;
+  --sign-line: #dcbccb;
+  --sign-ink: #6b3a52;
+  --sign-on: #6b3a52;
+  --sign-on-2: #8a5470;
+  --sign-on-ink: #fbeff4;
 }
 
 /* 🌊 Ocean: deep navy and teal, a harbour at night */
