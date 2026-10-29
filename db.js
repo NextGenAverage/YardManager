@@ -321,6 +321,14 @@ const migrations = [
   -- Undefined is shown in yellow (was pale beige), unless it was changed already.
   UPDATE statuses SET color = '#fffb00' WHERE name = 'Undefined' AND color = '#e6dcc3';
   `,
+  `
+  -- Small settings shared by everyone, as JSON (e.g. which columns of the
+  -- arrivals file hold what).
+  CREATE TABLE settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+  `,
 ];
 
 function migrate() {
@@ -569,6 +577,39 @@ function saveIncoming({ plate, trailerId, carrier, expectedAt, note, by }) {
 
 function deleteIncoming(id) {
   db.prepare("DELETE FROM incoming WHERE id = ?").run(id);
+}
+
+// Is a trailer with this reg. number in the yard now?
+const inYard = (plate) => !!activePlate.get(plate);
+
+// Arrivals import: rows of { plate, expectedAt, trailerId, carrier, note },
+// already checked and without trailers that are in the yard. Adds new entries
+// and updates existing ones; empty fields keep what the entry had.
+const importIncoming = db.transaction((rows, by) => {
+  const existing = new Map(getIncoming().map((e) => [e.plate, e]));
+  for (const r of rows) {
+    const old = existing.get(r.plate);
+    saveIncoming({
+      plate: r.plate,
+      expectedAt: r.expectedAt,
+      trailerId: r.trailerId || old?.trailerId || "",
+      carrier: r.carrier || old?.carrier || null,
+      note: r.note || old?.note || "",
+      by,
+    });
+  }
+});
+
+// ---- Settings shared by everyone (JSON values) ----
+
+function getSetting(key) {
+  const row = db.prepare("SELECT value FROM settings WHERE key = ?").get(key);
+  return row ? JSON.parse(row.value) : null;
+}
+
+function setSetting(key, value) {
+  db.prepare(`INSERT INTO settings (key, value) VALUES (?, ?)
+    ON CONFLICT (key) DO UPDATE SET value = excluded.value`).run(key, JSON.stringify(value));
 }
 
 // ---- Carriers ----
@@ -905,6 +946,10 @@ module.exports = {
   getIncoming,
   saveIncoming,
   deleteIncoming,
+  importIncoming,
+  inYard,
+  getSetting,
+  setSetting,
   getTrailer,
   listTrailers,
   linkTrailer,

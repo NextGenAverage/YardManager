@@ -116,7 +116,19 @@ The map shows each trailer's **reg. number** (licence plate) with a small **carr
 - 🛬 **Incoming** (header button): trailers expected to arrive, soonest first, visible to everyone. The button shows how many, e.g. *Incoming (3)*, and turns red when one is late.
 - 📍 **Arrived: place on map:** tap an open spot and the sheet opens filled in. Saving takes the trailer off the list and keeps its planned arrival on the visit.
 - 📊 **History** shows planned vs. actual times, e.g. *Planned arrival 10:27 · 40m late*.
+- 📥 **Import arrivals from Excel:** in the Incoming panel (operators), drop in the day's arrivals export (.xlsx or CSV). See below.
 - 🗓️ **Picking times:** clicking a date/time field opens a calendar and clock. Quick buttons (*+1 h*, *+2 h*, *Tomorrow 06:00*…) set common times in one click.
+
+### 📥 Importing the day's arrivals (Excel)
+
+**Incoming → Import arrivals from Excel** (operators)
+
+- 📄 **Files:** Excel `.xlsx` or CSV. The old `.xls` format isn't read; save it as `.xlsx` in Excel first.
+- 🔎 **Columns are guessed** from their names (e.g. *Reg.nr*, *ETA*/*Ankomst*/*Tid*, *Dato*, *Car*, *Ilu*, *Kommentar*), and a title above the header row is fine. Times can be Excel times or text like `14:30`, `kl 14.30` or `29.10.2026 14:30`; a time without a date means today.
+- 🎛️ **Wrong guess?** Pick the right column in the preview. The choice is **saved for everyone** and used next time.
+- ➕ **Only adds and updates:** a truck already on the list gets the new time and details (empty fields keep what it had). Nothing is removed. Trucks already in the yard are skipped, and the trailer register's trailer ID and carrier win over the file.
+- 👀 **Preview first:** each truck is marked *New*, *Update*, *No change* or *In yard*, with skipped lines and why (line numbers match Excel). Nothing is saved until **Import**.
+- 🛠️ **Adjusting it:** the column names it recognises are at the top of `incoming-import.js`.
 
 ---
 
@@ -155,6 +167,8 @@ The map shows each trailer's **reg. number** (licence plate) with a small **carr
 | `db.js` | SQLite schema, upgrades (`migrations`) and yard queries |
 | `layout.js` | Checks a layout from the map editor before it is saved |
 | `csv-import.js` | Reads the CSV trailer list (columns, separators, checks) |
+| `incoming-import.js` | Reads the day's arrivals (Excel/CSV): finds columns, reads times |
+| `xlsx-reader.js` | Small reader for Excel `.xlsx` files (first sheet, values only) |
 | `default-layout.js` | Starting yard layout (sections and buildings), copied into the database on first run |
 | `scripts/create-admin.js` | Creates the first admin / recovers admin access |
 
@@ -182,6 +196,7 @@ The map shows each trailer's **reg. number** (licence plate) with a small **carr
 | `sheet.js` | The edit sheet that opens when a spot is tapped |
 | `history.js` | The history panel |
 | `incoming.js` | The Incoming panel (expected arrivals) |
+| `arrivals-import.js` | Incoming → Import arrivals from Excel (preview, column choice) |
 | `zoom.js` | Zoom and Fit |
 | `geometry.js` | Layout sizes shared by the map and the editor |
 | `api.js` | Requests to the server |

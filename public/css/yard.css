@@ -1604,3 +1604,86 @@ input[type="datetime-local"]:not(:disabled) {
     transition-duration: .01ms !important;
   }
 }
+
+/* Incoming panel: importing arrivals from Excel */
+#in-import {
+  margin: 0 0 10px;
+}
+
+.col-pick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+  margin-bottom: 8px;
+}
+
+.col-pick label {
+  font-size: 12px;
+  color: var(--mute);
+}
+
+.col-pick select {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  padding: 5px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.in-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.in-table th,
+.in-table td {
+  padding: 5px 4px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.in-table th {
+  font-size: 11px;
+  color: var(--mute);
+}
+
+.in-table small {
+  display: block;
+  color: var(--mute);
+}
+
+/* What happens to each truck: New / Update / No change / In yard */
+.in-table .act {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.act-new .act {
+  background: #2fa862;
+  color: #fff;
+}
+
+.act-update .act {
+  background: var(--accent);
+  color: #fff;
+}
+
+.act-same .act,
+.act-in-yard .act {
+  background: var(--line);
+  color: var(--ink);
+}
+
+.act-in-yard td {
+  opacity: .6;
+}

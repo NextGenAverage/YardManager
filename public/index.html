@@ -127,6 +127,18 @@
           <button class="btn pri">Add</button>
         </div>
       </form>
+      <!-- Import the day's arrivals from Excel (arrivals-import.js), operators -->
+      <details class="import" id="in-import" hidden>
+        <summary>Import arrivals from Excel</summary>
+        <p class="intro">
+          An Excel (.xlsx) or CSV file with one row per truck: reg. number and expected time,
+          and if available date, trailer ID, carrier and note. New trucks are added and changed
+          ones updated; nothing is removed.
+        </p>
+        <input type="file" id="in-file" accept=".xlsx,.csv,text/csv">
+        <div id="in-preview"></div>
+      </details>
+      <p class="notice" id="in-notice" hidden></p>
       <p class="error" id="in-error"></p>
       <ul class="in-list" id="in-list"></ul>
     </div>

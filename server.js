@@ -6,6 +6,7 @@ const auth = require("./auth");
 const authRoutes = require("./auth-routes");
 const { readTrailerCsv, normalizePlate, cleanTrailerId } = require("./csv-import");
 const { checkLayout } = require("./layout");
+const { readArrivals } = require("./incoming-import");
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, "public");
@@ -14,7 +15,7 @@ const app = express();
 app.set("trust proxy", "loopback"); // correct client address and https when behind a local reverse proxy
 // Read JSON request bodies. The CSV import and layout routes read their own, larger ones.
 const smallJson = express.json({ limit: "200kb" });
-const ownBodyParser = ["/api/trailers/import", "/api/layout"];
+const ownBodyParser = ["/api/trailers/import", "/api/layout", "/api/incoming/import"];
 app.use((req, res, next) => (ownBodyParser.includes(req.path) ? next() : smallJson(req, res, next)));
 app.use(auth.loadUser);
 
@@ -272,6 +273,57 @@ app.post("/api/incoming", operator, (req, res) => {
 app.post("/api/incoming/delete", operator, (req, res) => {
   yard.deleteIncoming(Number(req.body.id));
   changed(res);
+});
+
+// Import expected arrivals from an Excel (.xlsx) or CSV file (sent as base64).
+// First with apply: false to preview, then apply: true to save. columns: the
+// user's choice of which column holds what ({ field: column name or null });
+// left out, the choice saved last time (or a guess) is used. Only adds and
+// updates; trailers already in the yard are skipped.
+app.post("/api/incoming/import", express.json({ limit: "15mb" }), operator, (req, res) => {
+  let result;
+  try {
+    result = readArrivals(Buffer.from(String(req.body.file ?? ""), "base64"), {
+      saved: req.body.columns || yard.getSetting("incomingColumns") || {},
+      carriers: yard.getCarriers(),
+    });
+  } catch (e) {
+    return res.status(400).json({ error: e.message || "Couldn't read the file." });
+  }
+  const { header, columns, rows, errors, warnings } = result;
+  const existing = new Map(yard.getIncoming().map((e) => [e.plate, e]));
+  const changes = [], preview = [];
+  let skipped = errors.length, unchanged = 0;
+  for (const r of rows) {
+    // The register knows the trailer ID and carrier of a known reg. number best.
+    const link = yard.getTrailer(r.plate);
+    if (link) Object.assign(r, { trailerId: link.trailerId, carrier: link.carrier });
+    const old = existing.get(r.plate);
+    let action;
+    if (yard.inYard(r.plate)) { action = "in yard"; skipped++; }
+    else if (!old) action = "new";
+    else if (old.expectedAt !== r.expectedAt || (r.trailerId && old.trailerId !== r.trailerId)
+      || (r.carrier && old.carrier !== r.carrier) || (r.note && old.note !== r.note)) action = "update";
+    else { action = "same"; unchanged++; }
+    if (action === "new" || action === "update") changes.push(r);
+    preview.push({ ...r, action, oldExpectedAt: old?.expectedAt ?? null });
+  }
+  const summary = {
+    added: preview.filter((p) => p.action === "new").length,
+    updated: preview.filter((p) => p.action === "update").length,
+    unchanged, skipped,
+  };
+  // Columns by name, as saved: { field: "ETA" } or null for "not used".
+  const columnNames = Object.fromEntries(Object.entries(columns).map(([f, i]) => [f, i >= 0 ? header[i] : null]));
+  if (!req.body.apply) {
+    return res.json({ header, columns: columnNames, summary, rows: preview.slice(0, 200), errors, warnings });
+  }
+  if (!rows.length) return res.status(400).json({ error: errors[0] || "Nothing to import." });
+  yard.setSetting("incomingColumns", columnNames);
+  yard.importIncoming(changes, who(req));
+  const s = state();
+  for (const l of listeners.keys()) l.write(event(s));
+  res.json({ summary, errors, warnings });
 });
 
 // ---- Map editor (admins) ----

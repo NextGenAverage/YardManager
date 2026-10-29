@@ -6,6 +6,7 @@ import { $, esc, formatTime, duration, toLocalInput, fromLocalInput } from "./ut
 import { yard, ui, can, carrierBadge } from "./store.js";
 import { send } from "./api.js";
 import { render } from "./map.js";
+import { initArrivalsImport } from "./arrivals-import.js";
 
 let open = false;
 export const isIncomingOpen = () => open;
@@ -28,6 +29,7 @@ export function renderIncoming() {
   if (!open) return;
   const operator = can("operator");
   $("in-add").hidden = !operator;
+  $("in-import").hidden = !operator;
   $("in-list").innerHTML = yard.incoming.length
     ? yard.incoming.map((e) => {
       const late = e.expectedAt < Date.now();
@@ -94,6 +96,7 @@ function startArrival(entry) {
 }
 
 export function initIncoming() {
+  initArrivalsImport();
   $("b-incoming").onclick = openIncoming;
   $("in-close").onclick = closeIncoming;
   $("incoming").onclick = (e) => { if (e.target === $("incoming")) closeIncoming(); }; // click outside the panel
