@@ -74,6 +74,24 @@ function createUser({ username, name, role }) {
   return { user: publicUser(userById(lastInsertRowid)), password };
 }
 
+// First start without any active admin (e.g. on a host without a command line,
+// like Render): create one so someone can log in. The password comes from the
+// ADMIN_PASSWORD setting, or is Test1234. Either way it is temporary: the admin
+// must choose a new one at first login.
+const DEFAULT_ADMIN_PASSWORD = "Test1234";
+
+function ensureFirstAdmin() {
+  if (countActiveAdmins()) return null;
+  const username = (process.env.ADMIN_USERNAME || "admin").trim();
+  if (userByName(username)) {
+    return { error: `No active admin, and the user "${username}" already exists. Run: npm run create-admin -- ${username}` };
+  }
+  const password = process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
+  db.prepare(`INSERT INTO users (username, name, role, password_hash, must_change_pw, created_at)
+    VALUES (?, ?, 'admin', ?, 1, ?)`).run(username, "Administrator", hashPassword(password), Date.now());
+  return { username, passwordFromSetting: !!process.env.ADMIN_PASSWORD };
+}
+
 function updateUser(id, { name, role, active }) {
   db.prepare("UPDATE users SET name = ?, role = ?, active = ? WHERE id = ?").run(name, role, active ? 1 : 0, id);
 }
@@ -175,7 +193,7 @@ const requireRole = (role) => (req, res, next) => {
 module.exports = {
   ROLES, COOKIE, atLeast,
   hashPassword, checkPassword, passwordProblem,
-  publicUser, userById, userByName, listUsers, countActiveAdmins, userProblem,
+  publicUser, userById, userByName, listUsers, countActiveAdmins, userProblem, ensureFirstAdmin,
   createUser, updateUser, resetPassword, setOwnPassword,
   startSession, endSession, endSessions,
   lockedOut, recordFailure, failures,

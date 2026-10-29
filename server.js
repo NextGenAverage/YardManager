@@ -12,7 +12,9 @@ const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, "public");
 
 const app = express();
-app.set("trust proxy", "loopback"); // correct client address and https when behind a local reverse proxy
+// Behind a reverse proxy, trust it for the client address and https: on Render
+// (which sets RENDER) its one proxy in front, otherwise only a proxy on this machine.
+app.set("trust proxy", process.env.RENDER ? 1 : "loopback");
 // Read JSON request bodies. The CSV import and layout routes read their own, larger ones.
 const smallJson = express.json({ limit: "200kb" });
 const ownBodyParser = ["/api/trailers/import", "/api/layout", "/api/incoming/import"];
@@ -396,9 +398,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Something went wrong on the server." });
 });
 
+// First start: make sure there is an admin to log in with (see auth.js).
+const firstAdmin = auth.ensureFirstAdmin();
+
 app.listen(PORT, () => {
   console.log(`Yard Manager running on http://localhost:${PORT}`);
-  if (!auth.countActiveAdmins()) {
-    console.log("No admin user yet. Create one with:  npm run create-admin -- <username> \"<Full name>\"");
+  if (firstAdmin?.error) console.log(firstAdmin.error);
+  else if (firstAdmin) {
+    console.log(`Created the first admin "${firstAdmin.username}" with `
+      + (firstAdmin.passwordFromSetting ? "the password from ADMIN_PASSWORD." : "the password Test1234.")
+      + " Log in and choose a new password.");
   }
 });

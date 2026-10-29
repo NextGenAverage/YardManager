@@ -46,15 +46,15 @@ Built with **Node.js**, **Express** and **SQLite**, plus a plain HTML/JavaScript
 # 1. Install dependencies
 npm install
 
-# 2. Create the first admin (prints a temporary password)
-npm run create-admin -- <username> "<Full name>"
+# 2. Start the server
 
-# 3. Start the server
 npm start            # 👉 http://localhost:3000
 npm run dev          # same, but restarts when files change
 ```
 
-Open the map, log in with the temporary password and choose your own. Then add your coworkers under **Manage → Users**.
+🔑 **First start:** when there is no admin yet, the server creates one: username **`admin`**, password **`Test1234`** (or the `ADMIN_PASSWORD` setting below). Log in, and you must choose your own password straight away. Then add your coworkers under **Manage → Users**.
+
+Prefer the command line? `npm run create-admin -- <username> "<Full name>"` creates an admin with a random temporary password.
 
 ### ⚙️ Settings
 
@@ -62,8 +62,18 @@ Open the map, log in with the temporary password and choose your own. Then add y
 |---|---|---|
 | `PORT` | `3000` | Web server port |
 | `DATA_DIR` | `./data` | Folder holding the database file `yard.db` |
+| `ADMIN_PASSWORD` | `Test1234` | First admin's temporary password (only used when there is no admin yet) |
+| `ADMIN_USERNAME` | `admin` | First admin's username |
 
 The database is created on first start with the starting layout from `default-layout.js` and the five statuses. 💾 `data/` is not in git, so the yard's data, users and passwords stay on the server.
+
+### ☁️ Hosting on Render
+
+1. **New → Web Service**, connect the GitHub repo.
+2. **Build command:** `npm install`. **Start command:** `npm start`. Render sets `PORT` and provides HTTPS itself.
+3. **Environment:** set `ADMIN_PASSWORD` to your own first password. ⚠️ A Render site is on the public internet, and `Test1234` is written in this README, so don't rely on the default there. Log in and change it as soon as it's up.
+4. 💾 **Keep the data:** Render's normal file system is **wiped on every deploy and restart**, and with it `data/yard.db` (trailers, history, users). Add a **Persistent Disk** (e.g. mounted at `/var/data`, needs a paid instance) and set `DATA_DIR=/var/data`. Without a disk, use it for testing only.
+5. 💤 On the free plan the service sleeps after a while without visitors; the first visit after that takes up to a minute.
 
 ---
 
