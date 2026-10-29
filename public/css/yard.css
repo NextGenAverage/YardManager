@@ -1687,3 +1687,20 @@ input[type="datetime-local"]:not(:disabled) {
 .act-in-yard td {
   opacity: .6;
 }
+
+/* Manage > Backups */
+#b-now {
+  flex: 0 0 auto;
+  margin: 6px 0 12px;
+  padding: 9px 18px;
+}
+
+.users small.file {
+  display: block;
+  font-size: 11px;
+  color: var(--mute);
+}
+
+#tab-backups code {
+  font-size: 13px;
+}

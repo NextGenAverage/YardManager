@@ -35,6 +35,7 @@ Built with **Node.js**, **Express** and **SQLite**, plus a plain HTML/JavaScript
 - 🧭 **Map editor:** drag sections and buildings, add or remove spots, restore earlier layouts
 - 🏷️ **Carriers:** names and badge colors
 - 👤 **Users:** add, change role, deactivate, reset passwords
+- 💾 **Backups:** nightly automatic copies, *Back up now*, downloads
 
 ---
 
@@ -64,6 +65,9 @@ Prefer the command line? `npm run create-admin -- <username> "<Full name>"` crea
 | `DATA_DIR` | `./data` | Folder holding the database file `yard.db` |
 | `ADMIN_PASSWORD` | `Test1234` | First admin's temporary password (only used when there is no admin yet) |
 | `ADMIN_USERNAME` | `admin` | First admin's username |
+| `BACKUP_DIR` | `./backups` | Folder for database backups (best on another drive or a network share) |
+| `BACKUP_TIME` | `02:00` | Time of the nightly backup |
+| `BACKUP_KEEP` | `30` | How many backups to keep |
 
 The database is created on first start with the starting layout from `default-layout.js` and the five statuses. 💾 `data/` is not in git, so the yard's data, users and passwords stay on the server.
 
@@ -74,6 +78,18 @@ The database is created on first start with the starting layout from `default-la
 3. **Environment:** set `ADMIN_PASSWORD` to your own first password. ⚠️ A Render site is on the public internet, and `Test1234` is written in this README, so don't rely on the default there. Log in and change it as soon as it's up.
 4. 💾 **Keep the data:** Render's normal file system is **wiped on every deploy and restart**, and with it `data/yard.db` (trailers, history, users). Add a **Persistent Disk** (e.g. mounted at `/var/data`, needs a paid instance) and set `DATA_DIR=/var/data`. Without a disk, use it for testing only.
 5. 💤 On the free plan the service sleeps after a while without visitors; the first visit after that takes up to a minute.
+
+## 💾 Backups
+
+- 🌙 **Every night** at `BACKUP_TIME` (02:00) the server copies the database to `BACKUP_DIR`, and also at startup if the newest copy is more than a day old (e.g. the PC was off). The copy is made while the app runs, and each copy is checked before it counts.
+- 🗂️ **Manage → Backups** (admins): list, **Back up now**, **Download**. The newest `BACKUP_KEEP` (30) are kept.
+- 🛡️ **Keep one elsewhere:** put `BACKUP_DIR` on another drive or a network share, or download a copy now and then, so one broken disk can't take both the data and its backups.
+- ⏪ **Restoring:**
+  1. Stop the server.
+  2. `npm run restore-backup` lists the backups; `npm run restore-backup -- <name>` restores one (it asks you to type *yes*).
+  3. Start the server. The database that was replaced is kept as a *before-restore* backup, so a restore can be undone the same way.
+
+  The restore refuses to run while the server is still running.
 
 ---
 
@@ -180,6 +196,8 @@ The map shows each trailer's **reg. number** (licence plate) with a small **carr
 | `incoming-import.js` | Reads the day's arrivals (Excel/CSV): finds columns, reads times |
 | `xlsx-reader.js` | Small reader for Excel `.xlsx` files (first sheet, values only) |
 | `default-layout.js` | Starting yard layout (sections and buildings), copied into the database on first run |
+| `backup.js` | Nightly and manual backups of the database |
+| `scripts/restore-backup.js` | Puts a backup back as the live database |
 | `scripts/create-admin.js` | Creates the first admin / recovers admin access |
 
 </details>
@@ -218,6 +236,7 @@ The map shows each trailer's **reg. number** (licence plate) with a small **carr
 | `manage-map.js` | Manage → Map: the map editor |
 | `manage-carriers.js` | Manage → Carriers |
 | `manage-users.js` | Manage → Users |
+| `manage-backups.js` | Manage → Backups |
 
 </details>
 
@@ -240,7 +259,7 @@ Add a new entry at the **end** of `migrations` in `db.js`. It can be an SQL stri
 
 ## 🗺️ Still to come
 
-- [ ] 💾 **Backups:** nightly automatic copies, a download button and restore steps
+- [x] 💾 **Backups:** nightly automatic copies, a download button and restore steps
 - [ ] 🌍 **Deployment:** running as a service on a company server, plus a maintainer guide
 - [ ] 🔐 **HTTPS:** needed before real use, so passwords aren't sent unencrypted
 

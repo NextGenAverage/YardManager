@@ -21,6 +21,7 @@
     <a href="#map" data-tab="map" hidden>Map</a>
     <a href="#carriers" data-tab="carriers" hidden>Carriers</a>
     <a href="#users" data-tab="users" hidden>Users</a>
+    <a href="#backups" data-tab="backups" hidden>Backups</a>
   </nav>
 
   <p class="page error" id="no-access" hidden>Your role doesn't have access to this page.</p>
@@ -115,6 +116,27 @@
       <input name="color" type="color" value="#5b606a" aria-label="Badge color">
       <button class="btn pri">Add</button>
     </form>
+  </section>
+
+  <!-- Backups (admins, manage-backups.js) -->
+  <section class="page" id="tab-backups" hidden>
+    <p class="intro" id="b-info"></p>
+    <p class="notice" id="b-notice" hidden></p>
+    <p class="error" id="b-error"></p>
+    <button class="btn pri" id="b-now" type="button">Back up now</button>
+    <div class="table-wrap">
+      <table class="users">
+        <thead><tr><th>Backup</th><th>Made</th><th>Size</th><th></th></tr></thead>
+        <tbody id="b-rows"></tbody>
+      </table>
+    </div>
+    <h2 class="page-h2">Restoring a backup</h2>
+    <ol class="role-help">
+      <li>Stop the Yard Manager server.</li>
+      <li>In the project folder, run <code>npm run restore-backup</code> to list the backups, then
+        <code>npm run restore-backup -- &lt;name&gt;</code> for the one you want.</li>
+      <li>Start the server again. The database that was replaced is kept as a "before-restore" backup.</li>
+    </ol>
   </section>
 
   <!-- Users (admins, manage-users.js) -->

@@ -7,6 +7,7 @@ const authRoutes = require("./auth-routes");
 const { readTrailerCsv, normalizePlate, cleanTrailerId } = require("./csv-import");
 const { checkLayout } = require("./layout");
 const { readArrivals } = require("./incoming-import");
+const backup = require("./backup");
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, "public");
@@ -364,6 +365,28 @@ app.post("/api/layout/restore", admin, (req, res) => {
   changed(res);
 });
 
+// ---- Backups (admins) ----
+
+app.get("/api/backups", admin, (_req, res) => {
+  res.json({ backups: backup.listBackups(), dir: backup.BACKUP_DIR, time: backup.BACKUP_TIME, keep: backup.BACKUP_KEEP });
+});
+
+app.post("/api/backups", admin, async (req, res, next) => {
+  try {
+    const made = await backup.makeBackup("manual");
+    console.log(`Backup saved: ${made.name} (by ${who(req)})`);
+    res.json({ backup: made, backups: backup.listBackups() });
+  } catch (e) {
+    next(e);
+  }
+});
+
+app.get("/api/backups/:name", admin, (req, res) => {
+  const file = backup.backupFile(req.params.name);
+  if (!file) return res.status(404).json({ error: "No such backup." });
+  res.download(file);
+});
+
 // ---- Carriers (admins) ----
 
 app.post("/api/carriers", admin, (req, res) => {
@@ -403,6 +426,8 @@ const firstAdmin = auth.ensureFirstAdmin();
 
 app.listen(PORT, () => {
   console.log(`Yard Manager running on http://localhost:${PORT}`);
+  console.log(`Backups: every night at ${backup.BACKUP_TIME} to ${backup.BACKUP_DIR} (newest ${backup.BACKUP_KEEP} kept)`);
+  backup.scheduleBackups((text) => console.log(text));
   if (firstAdmin?.error) console.log(firstAdmin.error);
   else if (firstAdmin) {
     console.log(`Created the first admin "${firstAdmin.username}" with `

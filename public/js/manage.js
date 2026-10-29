@@ -5,9 +5,10 @@ import { initTrailers } from "./manage-trailers.js";
 import { initUsers } from "./manage-users.js";
 import { initCarriers } from "./manage-carriers.js";
 import { initMap } from "./manage-map.js";
+import { initBackups } from "./manage-backups.js";
 
 // Which role each tab needs (the server checks the same).
-const TABS = { trailers: "operator", map: "admin", carriers: "admin", users: "admin" };
+const TABS = { trailers: "operator", map: "admin", carriers: "admin", users: "admin", backups: "admin" };
 const ROLES = ["viewer", "worker", "operator", "admin"];
 
 const me = await fetch("/api/me").then((r) => (r.ok ? r.json() : null)).catch(() => null);
@@ -29,7 +30,7 @@ function show() {
   for (const name of Object.keys(TABS)) $("tab-" + name).hidden = name !== tab;
   if (tab && !started[tab]) {
     started[tab] = true;
-    ({ trailers: initTrailers, map: initMap, carriers: initCarriers, users: initUsers })[tab]();
+    ({ trailers: initTrailers, map: initMap, carriers: initCarriers, users: initUsers, backups: initBackups })[tab]();
   }
 }
 window.addEventListener("hashchange", show);
