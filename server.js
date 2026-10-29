@@ -1,4 +1,7 @@
 // Yard Manager web server: serves the pages and the shared yard API.
+const fs = require("fs");
+const http = require("http");
+const https = require("https");
 const path = require("path");
 const express = require("express");
 const yard = require("./db");
@@ -424,8 +427,34 @@ app.use((err, req, res, next) => {
 // First start: make sure there is an admin to log in with (see auth.js).
 const firstAdmin = auth.ensureFirstAdmin();
 
-app.listen(PORT, () => {
-  console.log(`Yard Manager running on http://localhost:${PORT}`);
+// ---- Start: HTTPS when a certificate is set up, otherwise plain HTTP ----
+// The certificate (from IT) is either one .pfx file with its password
+// (HTTPS_PFX + HTTPS_PASSPHRASE) or a certificate and key in PEM format
+// (HTTPS_CERT + HTTPS_KEY). With HTTP_REDIRECT_PORT set, plain-http visitors
+// on that port are sent on to the https address.
+function httpsOptions() {
+  const { HTTPS_PFX, HTTPS_PASSPHRASE, HTTPS_CERT, HTTPS_KEY } = process.env;
+  try {
+    if (HTTPS_PFX) return { pfx: fs.readFileSync(HTTPS_PFX), passphrase: HTTPS_PASSPHRASE };
+    if (HTTPS_CERT || HTTPS_KEY) return { cert: fs.readFileSync(HTTPS_CERT), key: fs.readFileSync(HTTPS_KEY) };
+  } catch (e) {
+    console.error(`HTTPS: can't read the certificate file (${e.message}). Check HTTPS_PFX / HTTPS_CERT / HTTPS_KEY in .env.`);
+    process.exit(1);
+  }
+  return null;
+}
+
+const tls = httpsOptions();
+let server;
+try {
+  server = tls ? https.createServer(tls, app) : http.createServer(app);
+} catch (e) {
+  console.error(`HTTPS: the certificate can't be used (${e.message}). Wrong HTTPS_PASSPHRASE, or the key doesn't match the certificate?`);
+  process.exit(1);
+}
+
+server.listen(PORT, () => {
+  console.log(`Yard Manager running on ${tls ? "https" : "http"}://localhost:${PORT}`);
   console.log(`Backups: every night at ${backup.BACKUP_TIME} to ${backup.BACKUP_DIR} (newest ${backup.BACKUP_KEEP} kept)`);
   backup.scheduleBackups((text) => console.log(text));
   if (firstAdmin?.error) console.log(firstAdmin.error);
@@ -435,3 +464,12 @@ app.listen(PORT, () => {
       + " Log in and choose a new password.");
   }
 });
+
+const REDIRECT_PORT = Number(process.env.HTTP_REDIRECT_PORT);
+if (tls && REDIRECT_PORT) {
+  http.createServer((req, res) => {
+    const host = (req.headers.host || "localhost").replace(/:\d+$/, "");
+    res.writeHead(301, { Location: `https://${host}${PORT === 443 ? "" : ":" + PORT}${req.url}` });
+    res.end();
+  }).listen(REDIRECT_PORT, () => console.log(`Plain http on port ${REDIRECT_PORT} is sent on to https.`));
+}

@@ -5,13 +5,13 @@
   "description": "Shared trailer yard map for the distribution center.",
   "main": "server.js",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.9"
   },
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
-    "create-admin": "node scripts/create-admin.js",
-    "restore-backup": "node scripts/restore-backup.js"
+    "start": "node --env-file-if-exists=.env server.js",
+    "dev": "node --env-file-if-exists=.env --watch server.js",
+    "create-admin": "node --env-file-if-exists=.env scripts/create-admin.js",
+    "restore-backup": "node --env-file-if-exists=.env scripts/restore-backup.js"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

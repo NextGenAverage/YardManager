@@ -41,7 +41,7 @@ Built with **Node.js**, **Express** and **SQLite**, plus a plain HTML/JavaScript
 
 ## 🚀 Getting started
 
-**Requires** [Node.js](https://nodejs.org) 22 or newer.
+**Requires** [Node.js](https://nodejs.org) 22.9 or newer.
 
 ```sh
 # 1. Install dependencies
@@ -59,17 +59,33 @@ Prefer the command line? `npm run create-admin -- <username> "<Full name>"` crea
 
 ### ⚙️ Settings
 
+Settings go in a file called **`.env`** in the project folder: copy **`.env.example`** to `.env` and remove the `#` in front of what you want to change. `.env` is not in git, so passwords in it stay on the server. Restart the server after changing it. (Environment variables with the same names work too, e.g. on Render.)
+
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORT` | `3000` | Web server port |
 | `DATA_DIR` | `./data` | Folder holding the database file `yard.db` |
 | `ADMIN_PASSWORD` | `Test1234` | First admin's temporary password (only used when there is no admin yet) |
 | `ADMIN_USERNAME` | `admin` | First admin's username |
+| `HTTPS_PFX` + `HTTPS_PASSPHRASE` | | Certificate as a `.pfx` file and its password (see HTTPS below) |
+| `HTTPS_CERT` + `HTTPS_KEY` | | Or: certificate and key as `.crt`/`.pem` + `.key` |
+| `HTTP_REDIRECT_PORT` | | Also listen for plain http here (e.g. `80`) and send visitors on to https |
 | `BACKUP_DIR` | `./backups` | Folder for database backups (best on another drive or a network share) |
 | `BACKUP_TIME` | `02:00` | Time of the nightly backup |
 | `BACKUP_KEEP` | `30` | How many backups to keep |
 
 The database is created on first start with the starting layout from `default-layout.js` and the five statuses. 💾 `data/` is not in git, so the yard's data, users and passwords stay on the server.
+
+### 🔒 HTTPS
+
+Without HTTPS, passwords and data travel unencrypted over the network, so turn it on before real use.
+
+1. 📜 **Get a certificate from IT** for the server's name (e.g. `yard.company.local`). Company IT usually issues one from the company's own certificate authority, which every company PC already trusts. A `.pfx` file with a password is the usual Windows format; `.crt` + `.key` works too.
+2. 📁 **Put it in a folder outside the project** (e.g. `C:YardManagercerts`), readable only by the account that runs the app.
+3. ⚙️ **In `.env`:** `HTTPS_PFX` + `HTTPS_PASSPHRASE` (or `HTTPS_CERT` + `HTTPS_KEY`), and `PORT=443`. With `HTTP_REDIRECT_PORT=80`, people who type `http://` are sent on to https.
+4. 🔁 **Restart.** The log says `running on https://...`. A wrong password or missing file stops the start with a clear message.
+
+Notes: certificates expire (often after 1–2 years): put the renewal date in a calendar, replace the file and restart. If IIS already uses port 443 on that server, use another port (e.g. `PORT=8443`) or let IIS forward to the app. The login cookie is automatically marked *Secure* over https.
 
 ### ☁️ Hosting on Render
 
@@ -261,7 +277,7 @@ Add a new entry at the **end** of `migrations` in `db.js`. It can be an SQL stri
 
 - [x] 💾 **Backups:** nightly automatic copies, a download button and restore steps
 - [ ] 🌍 **Deployment:** running as a service on a company server, plus a maintainer guide
-- [ ] 🔐 **HTTPS:** needed before real use, so passwords aren't sent unencrypted
+- [x] 🔐 **HTTPS:** built in; needs a certificate from IT
 
 ---
 
