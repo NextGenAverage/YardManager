@@ -23,6 +23,7 @@ Built with **Node.js**, **Express** and **SQLite**, plus a plain HTML/JavaScript
 - 🔗 **Trailer register:** each reg. number is linked to its trailer ID and carrier, filled in automatically
 - 📥 **CSV import** of the carrier's trailer list, with a preview and conflict handling
 - 🛬 **Incoming list** of expected arrivals; tap *Arrived* and place the trailer on the map
+- 🚚 **Next arrivals** beside the map: the next 3 trailers, each a small truck driving to the warehouse as its time approaches
 - 🕓 **Arrival, departure and planned times** are recorded for every visit
 - 📜 **Full history:** who did what and when, per trailer, per spot or for the whole yard
 
@@ -156,6 +157,7 @@ The map shows each trailer's **reg. number** (licence plate) with a small **carr
 
 - 🛫 **Planned departure:** operators set it in the trailer's sheet. Once it passes, the map shows a red **late** marker instead of the dwell time.
 - 🛬 **Incoming** (header button): trailers expected to arrive, soonest first, visible to everyone. The button shows how many, e.g. *Incoming (3)*, and turns red when one is late.
+- 🚚 **Next arrivals** (under the side panel, stays in view): the next 3 expected trailers with reg. number, carrier, time and *in 25m* / *15m late*. A truck drives along a road to the warehouse during the last 2 hours before its time (worked out from the clock, not GPS); a late one waits at the warehouse on a red road. Click a card to open Incoming. The 2 hours and the 3 trailers are set at the top of `public/js/tracker.js`.
 - 📍 **Arrived: place on map:** tap an open spot and the sheet opens filled in. Saving takes the trailer off the list and keeps its planned arrival on the visit.
 - 📊 **History** shows planned vs. actual times, e.g. *Planned arrival 10:27 · 40m late*.
 - 📥 **Import arrivals from Excel:** in the Incoming panel (operators), drop in the day's arrivals export (.xlsx or CSV). See below.
@@ -240,6 +242,7 @@ The map shows each trailer's **reg. number** (licence plate) with a small **carr
 | `sheet.js` | The edit sheet that opens when a spot is tapped |
 | `history.js` | The history panel |
 | `incoming.js` | The Incoming panel (expected arrivals) |
+| `tracker.js` | Next arrivals: trucks driving to the warehouse |
 | `arrivals-import.js` | Incoming → Import arrivals from Excel (preview, column choice) |
 | `zoom.js` | Zoom and Fit |
 | `geometry.js` | Layout sizes shared by the map and the editor |

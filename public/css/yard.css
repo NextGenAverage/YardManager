@@ -193,11 +193,20 @@ main > .lot:last-child {
 }
 
 /* Side panel: beside the map, stays in view, not affected by map zoom */
-.side {
+/* Left column (side panel + next arrivals): beside the map, stays in view */
+.side-col {
   flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   position: sticky;
   top: calc(var(--hh, 120px) + 10px);   /* --hh = header height, set by zoom.js */
   max-height: calc(100vh - var(--hh, 120px) - 20px);
+}
+
+.side {
+  flex: 0 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding: 10px;
 }
@@ -217,9 +226,12 @@ main > .lot:last-child {
     align-items: stretch;
   }
 
-  .side {
+  .side-col {
     position: static;
     max-height: none;
+  }
+
+  .side {
     overflow-x: auto;
   }
 
@@ -1703,4 +1715,163 @@ input[type="datetime-local"]:not(:disabled) {
 
 #tab-backups code {
   font-size: 13px;
+}
+
+
+/* ============================================================
+   Next arrivals (tracker.js): a truck driving to the warehouse
+   --p = how far along the road (0-1), --tc = the carrier's color
+   ============================================================ */
+
+.tracker {
+  flex: none;
+  padding: 10px;
+}
+
+.tracker h2 {
+  margin-bottom: 6px;
+}
+
+.trk {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 6px 8px 5px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .2);
+  color: #eef0f5;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trk:last-child {
+  margin-bottom: 0;
+}
+
+.trk:hover {
+  border-color: rgba(255, 255, 255, .35);
+}
+
+.trk-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.trk-plate {
+  font-size: 14px;
+  letter-spacing: .02em;
+}
+
+.trk-when {
+  margin-left: auto;
+  font-size: 12px;
+  color: #b8bfcc;
+  white-space: nowrap;
+}
+
+.trk-time {
+  display: block;
+  font-size: 11px;
+  color: #98a0b3;
+}
+
+/* The road: a dashed line with the warehouse at the end */
+.trk-road {
+  display: block;
+  position: relative;
+  height: 22px;
+  margin: 3px 0 1px;
+  background: linear-gradient(90deg, rgba(245, 230, 184, .45) 50%, transparent 0) 0 16px / 10px 2px repeat-x;
+}
+
+.trk-truck {
+  position: absolute;
+  top: 0;
+  left: calc(var(--p, 0) * (100% - 62px));   /* stops just before the warehouse */
+  transition: left 1.2s cubic-bezier(.2, .8, .2, 1);
+}
+
+.trk-truck-svg {
+  display: block;
+  width: 40px;
+  height: 18px;
+  fill: #1b2130;
+}
+
+.trk-box {
+  fill: var(--tc, #c7ccd4);
+  stroke: rgba(255, 255, 255, .6);
+  stroke-width: .8;
+}
+
+.trk-cab {
+  fill: #e8ebf0;
+}
+
+.trk-goal {
+  position: absolute;
+  right: 0;
+  top: 1px;
+  width: 20px;
+  height: 18px;
+  fill: #aab0b9;
+}
+
+.trk-door {
+  fill: #3a3e45;
+}
+
+/* On its way: the truck bobs gently */
+.trk:not(.late) .trk-truck-svg {
+  animation: trk-bob 1.4s ease-in-out infinite;
+}
+
+@keyframes trk-bob {
+  50% { transform: translateY(-1px); }
+}
+
+/* Late: waiting at the warehouse, red road and text */
+.trk.late {
+  border-color: rgba(229, 57, 47, .6);
+}
+
+.trk.late .trk-when {
+  color: #ff6b61;
+  font-weight: 700;
+}
+
+.trk.late .trk-road {
+  background-image: linear-gradient(90deg, rgba(229, 57, 47, .8) 50%, transparent 0);
+}
+
+.trk.late .trk-goal {
+  animation: trk-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes trk-pulse {
+  50% { fill: #ff6b61; }
+}
+
+.trk-empty {
+  margin: 0;
+  font-size: 12px;
+  color: #98a0b3;
+}
+
+/* Phones: the cards side by side in a row that scrolls sideways */
+@media (max-width: 699px) {
+  #tracker-list {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+  }
+
+  .trk {
+    flex: 0 0 220px;
+    margin-bottom: 0;
+  }
 }

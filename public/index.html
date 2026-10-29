@@ -38,8 +38,14 @@
   </header>
 
   <main id="main">
-    <!-- Unassigned trailers (filled in by map.js) -->
-    <aside class="side lot" id="side"></aside>
+    <!-- Left column, stays in view: unassigned trailers (map.js) and the next arrivals (tracker.js) -->
+    <div class="side-col">
+      <aside class="side lot" id="side"></aside>
+      <section class="tracker lot" id="tracker" aria-label="Next arrivals">
+        <h2>Next arrivals</h2>
+        <div id="tracker-list"></div>
+      </section>
+    </div>
 
     <!-- The yard map -->
     <div class="lot">

@@ -8,6 +8,7 @@ import { initZoom } from "./zoom.js";
 import { initSheet, openSheet, closeSheet, isSheetOpen } from "./sheet.js";
 import { initHistory, openHistory, closeHistory, isHistoryOpen } from "./history.js";
 import { initIncoming, renderIncoming, closeIncoming, isIncomingOpen } from "./incoming.js";
+import { initTracker, renderTracker } from "./tracker.js";
 
 function cancelMove() {
   ui.moving = null;
@@ -70,6 +71,7 @@ onYardChange(() => {
   renderLegend();
   render();
   renderIncoming();
+  renderTracker();
 });
 
 // Who is logged in. Not logged in (or session ended): go to the login page.
@@ -91,6 +93,7 @@ initDatePickers();
 initSheet();
 initHistory();
 initIncoming();
+initTracker();
 showMsg("Loading…");
 
 // Live updates: the server sends the whole yard every time anything changes.
@@ -116,4 +119,5 @@ connectLive();
 setInterval(() => {
   if (!ui.moving) render();
   renderIncoming();
+  renderTracker();
 }, 60000);
